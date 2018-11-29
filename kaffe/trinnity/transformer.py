@@ -25,13 +25,13 @@ class TrinnityNode(object):
         template_args = list(map(str, self.args))
         template_args = ', '.join(template_args)
         # Format dynamic arguments
-        dynamic_args = [kwargs['input']]
+        dynamic_args = [self.kwargs['input']]
 
         if (self.has_weights):
-            dynamic_args += [kwargs['weights']]
+            dynamic_args += [self.kwargs['weights']]
 
-        if (kwargs['biased']):
-            dynamic_args += [kwargs['biases']]
+        if (self.kwargs['biased']):
+            dynamic_args += [self.kwargs['biases']]
 
         dynamic_args = ', '.join(dynamic_args)
 
@@ -54,6 +54,7 @@ class TrinnityMapper(NodeMapper):
 
     def map_convolution(self, node):
         kernel_params = node.layer.kernel_parameters
+        k = 3
         h = kernel_params.kernel_h
         w = kernel_params.kernel_w
         m = node.output_shape[1]
@@ -63,17 +64,23 @@ class TrinnityMapper(NodeMapper):
         ow = w / sw
         oh = h / sh
 
+        kwargs = {'input':'input_arr', 'output':'output_arr', 'weights':'weights_arr'}
         group = node.parameters.group
         if group != 1:
             kwargs['group'] = group
 
         if not node.parameters.bias_term:
             kwargs['biased'] = False
+        else:
+            kwargs['biased'] = True
+            kwargs['biases'] = 'bias_arr'
 
         return MaybeActivated(node)('triNNity::generic::layer::GenericFusedConvolutionalLayer', c, w, h, k, sw, sh, m, ow, oh, **kwargs)
 
     def map_relu(self, node):
-        return TrinnityNode('relu')
+        kwargs = {'input':'input_arr', 'output':'output_arr', 'weights':'weights_arr'}
+        kwargs['biased'] = False
+        return TrinnityNode('relu', **kwargs)
 
     def map_pooling(self, node):
         pool_type = node.parameters.pool
@@ -84,25 +91,52 @@ class TrinnityMapper(NodeMapper):
         else:
             # Stochastic pooling, for instance.
             raise KaffeError('Unsupported pooling type.')
-        (kernel_params, padding) = self.get_kernel_params(node)
+        kernel_params = node.layer.kernel_parameters
+        kwargs = {'input':'input_arr', 'output':'output_arr', 'weights':'weights_arr'}
+        kwargs['biased'] = False
         return TrinnityNode(pool_op, kernel_params.kernel_h, kernel_params.kernel_w,
-                              kernel_params.stride_h, kernel_params.stride_w, **padding)
+                              kernel_params.stride_h, kernel_params.stride_w, **kwargs)
 
     def map_inner_product(self, node):
         #TODO: Axis
         assert node.parameters.axis == 1
         #TODO: Unbiased
         assert node.parameters.bias_term == True
-        return MaybeActivated(node)('fc', node.parameters.num_output)
+        kwargs = {'input':'input_arr', 'output':'output_arr', 'weights':'weights_arr'}
+        if not node.parameters.bias_term:
+            kwargs['biased'] = False
+        else:
+            kwargs['biased'] = True
+            kwargs['biases'] = 'bias_arr'
+        return MaybeActivated(node)('fc', node.parameters.num_output, **kwargs)
 
     def map_softmax(self, node):
-        return TrinnityNode('softmax')
+        kwargs = {'input':'input_arr', 'output':'output_arr', 'weights':'weights_arr'}
+        if not node.parameters.bias_term:
+            kwargs['biased'] = False
+        else:
+            kwargs['biased'] = True
+            kwargs['biases'] = 'bias_arr'
+        return TrinnityNode('softmax', **kwargs)
 
     def map_softmax_with_loss(self, node):
-        return TrinnityNode('softmax_loss')
+        kwargs = {'input':'input_arr', 'output':'output_arr', 'weights':'weights_arr'}
+        if not node.parameters.bias_term:
+            kwargs['biased'] = False
+        else:
+            kwargs['biased'] = True
+            kwargs['biases'] = 'bias_arr'
+        return TrinnityNode('softmax_loss', **kwargs)
 
     def map_accuracy(self, node):
-        return TrinnityNode('accuracy')
+        kwargs = {'input':'input_arr', 'output':'output_arr', 'weights':'weights_arr'}
+        if not node.parameters.bias_term:
+            kwargs['biased'] = False
+        else:
+            kwargs['biased'] = True
+            kwargs['biases'] = 'bias_arr'
+        return TrinnityNode('accuracy', **kwargs)
+
 
     def map_lrn(self, node):
         params = node.parameters
@@ -113,25 +147,55 @@ class TrinnityMapper(NodeMapper):
         # just scales by alpha (as does Krizhevsky's paper).
         # We'll account for that here.
         alpha = params.alpha / float(params.local_size)
-        return TrinnityNode('lrn', int(params.local_size / 2), alpha, params.beta)
+        kwargs = {'input':'input_arr', 'output':'output_arr', 'weights':'weights_arr'}
+        if not node.parameters.bias_term:
+            kwargs['biased'] = False
+        else:
+            kwargs['biased'] = True
+            kwargs['biases'] = 'bias_arr'
+        return TrinnityNode('lrn', int(params.local_size / 2), alpha, params.beta, **kwargs)
 
     def map_concat(self, node):
         axis = (2, 3, 1, 0)[node.parameters.axis]
-        return TrinnityNode('concat', axis)
+        kwargs = {'input':'input_arr', 'output':'output_arr', 'weights':'weights_arr'}
+        if not node.parameters.bias_term:
+            kwargs['biased'] = False
+        else:
+            kwargs['biased'] = True
+            kwargs['biases'] = 'bias_arr'
+        return TrinnityNode('concat', axis, **kwargs)
 
     def map_dropout(self, node):
-        return TrinnityNode('dropout', node.parameters.dropout_ratio)
+        kwargs = {'input':'input_arr', 'output':'output_arr', 'weights':'weights_arr'}
+        if not node.parameters.bias_term:
+            kwargs['biased'] = False
+        else:
+            kwargs['biased'] = True
+            kwargs['biases'] = 'bias_arr'
+        return TrinnityNode('dropout', node.parameters.dropout_ratio, **kwargs)
 
     def map_batch_norm(self, node):
         scale_offset = len(node.data) == 4
         kwargs = {} if scale_offset else {'scale_offset': False}
+        kwargs += {'input':'input_arr', 'output':'output_arr', 'weights':'weights_arr'}
+        if not node.parameters.bias_term:
+            kwargs['biased'] = False
+        else:
+            kwargs['biased'] = True
+            kwargs['biases'] = 'bias_arr'
         return MaybeActivated(node, default=False)('batch_normalization', **kwargs)
 
     def map_eltwise(self, node):
         operations = {0: 'multiply', 1: 'add', 2: 'max'}
         op_code = node.parameters.operation
+        kwargs = {'input':'input_arr', 'output':'output_arr', 'weights':'weights_arr'}
+        if not node.parameters.bias_term:
+            kwargs['biased'] = False
+        else:
+            kwargs['biased'] = True
+            kwargs['biases'] = 'bias_arr'
         try:
-            return TrinnityNode(operations[op_code])
+            return TrinnityNode(operations[op_code], **kwargs)
         except KeyError:
             raise KaffeError('Unknown elementwise operation: {}'.format(op_code))
 
