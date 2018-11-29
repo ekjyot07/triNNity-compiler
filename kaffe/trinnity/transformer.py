@@ -6,58 +6,36 @@ from ..layers import NodeKind
 from ..transformers import (DataInjector, DataReshaper, NodeRenamer, ReLUFuser,
                             BatchNormScaleBiasFuser, BatchNormPreprocessor, ParameterNamer)
 
-def get_padding_type(kernel_params, input_shape, output_shape):
-    '''Translates Caffe's numeric padding to one of ('SAME', 'VALID').
-    Caffe supports arbitrary padding values, while TensorFlow only
-    supports 'SAME' and 'VALID' modes. So, not all Caffe paddings
-    can be translated to TensorFlow. There are some subtleties to
-    how the padding edge-cases are handled. These are described here:
-    https://github.com/Yangqing/caffe2/blob/master/caffe2/proto/caffe2_legacy.proto
-    '''
-    k_h, k_w, s_h, s_w, p_h, p_w = kernel_params
-    s_o_h = np.ceil(input_shape.height / float(s_h))
-    s_o_w = np.ceil(input_shape.width / float(s_w))
-    if (output_shape.height == s_o_h) and (output_shape.width == s_o_w):
-        return 'SAME'
-    v_o_h = np.ceil((input_shape.height - k_h + 1.0) / float(s_h))
-    v_o_w = np.ceil((input_shape.width - k_w + 1.0) / float(s_w))
-    if (output_shape.height == v_o_h) and (output_shape.width == v_o_w):
-        return 'VALID'
-    return None
-
-
 class TrinnityNode(object):
-    '''An intermediate representation for TensorFlow operations.'''
+    '''An intermediate representation for Trinnity operations.'''
 
     def __init__(self, op, *args, **kwargs):
-        # A string corresponding to the TensorFlow operation
+        # A string corresponding to the Trinnity operation
         self.op = op
-        # Positional arguments for the operation
         self.args = args
-        # Keyword arguments for the operation
-        self.kwargs = list(kwargs.items())
+        self.kwargs = kwargs
         # The source Caffe node
         self.node = None
-
-    def format(self, arg):
-        '''Returns a string representation for the given value.'''
-        return "'%s'" % arg if isinstance(arg, basestring) else str(arg)
-
-    def pair(self, key, value):
-        '''Returns key=formatted(value).'''
-        return '%s=%s' % (key, self.format(value))
+        # Whether this operation has weights
+        self.has_weights = False
 
     def emit(self):
-        '''Emits the Python source for this node.'''
-        # Format positional arguments
-        args = map(self.format, self.args)
-        # Format any keyword arguments
-        if self.kwargs:
-            args += [self.pair(k, v) for k, v in self.kwargs]
-        # Set the node name
-        args.append(self.pair('name', self.node.name))
-        args = ', '.join(args)
-        return '%s(%s)' % (self.op, args)
+        '''Emits the C++ code for this node.'''
+        # Format static arguments
+        template_args = list(map(str, self.args))
+        template_args = ', '.join(template_args)
+        # Format dynamic arguments
+        dynamic_args = [kwargs['input']]
+
+        if (self.has_weights):
+            dynamic_args += [kwargs['weights']]
+
+        if (kwargs['biased']):
+            dynamic_args += [kwargs['biases']]
+
+        dynamic_args = ', '.join(dynamic_args)
+
+        return '%s<%s> %s(%s);' % (self.op, template_args, self.node.name, dynamic_args)
 
 
 class MaybeActivated(object):
@@ -74,29 +52,25 @@ class MaybeActivated(object):
 
 class TrinnityMapper(NodeMapper):
 
-    def get_kernel_params(self, node):
-        kernel_params = node.layer.kernel_parameters
-        input_shape = node.get_only_parent().output_shape
-        padding = get_padding_type(kernel_params, input_shape, node.output_shape)
-        # Only emit the padding if it's not the default value.
-        padding = {}
-        return (kernel_params, padding)
-
     def map_convolution(self, node):
-        (kernel_params, kwargs) = self.get_kernel_params(node)
+        kernel_params = node.layer.kernel_parameters
         h = kernel_params.kernel_h
         w = kernel_params.kernel_w
-        c_o = node.output_shape[1]
-        c_i = node.parents[0].output_shape[1]
+        m = node.output_shape[1]
+        c = node.parents[0].output_shape[1]
+        sw = kernel_params.stride_w
+        sh = kernel_params.stride_h
+        ow = w / sw
+        oh = h / sh
+
         group = node.parameters.group
         if group != 1:
             kwargs['group'] = group
+
         if not node.parameters.bias_term:
             kwargs['biased'] = False
-        assert kernel_params.kernel_h == h
-        assert kernel_params.kernel_w == w
-        return MaybeActivated(node)('conv', kernel_params.kernel_h, kernel_params.kernel_w, c_o,
-                                    kernel_params.stride_h, kernel_params.stride_w, **kwargs)
+
+        return MaybeActivated(node)('triNNity::generic::layer::GenericFusedConvolutionalLayer', c, w, h, k, sw, sh, m, ow, oh, **kwargs)
 
     def map_relu(self, node):
         return TrinnityNode('relu')
@@ -124,12 +98,18 @@ class TrinnityMapper(NodeMapper):
     def map_softmax(self, node):
         return TrinnityNode('softmax')
 
+    def map_softmax_with_loss(self, node):
+        return TrinnityNode('softmax_loss')
+
+    def map_accuracy(self, node):
+        return TrinnityNode('accuracy')
+
     def map_lrn(self, node):
         params = node.parameters
         # The window size must be an odd value. For a window
-        # size of (2*n+1), TensorFlow defines depth_radius = n.
+        # size of (2*n+1), Trinnity defines depth_radius = n.
         assert params.local_size % 2 == 1
-        # Caffe scales by (alpha/(2*n+1)), whereas TensorFlow
+        # Caffe scales by (alpha/(2*n+1)), whereas Trinnity
         # just scales by alpha (as does Krizhevsky's paper).
         # We'll account for that here.
         alpha = params.alpha / float(params.local_size)
@@ -175,7 +155,8 @@ class TrinnityEmitter(object):
         return self.prefix + s + '\n'
 
     def emit_imports(self):
-        return self.statement('from kaffe.tensorflow import Network\n')
+        return (self.statement('#include <triNNity/layer.h>') +
+                self.statement('#include <triNNity/generic/layer.h>'))
 
     def emit_class_def(self, name):
         return self.statement('class %s(Network):' % (name))
@@ -235,12 +216,10 @@ class TrinnityTransformer(object):
             # Fuse ReLUs
             # TODO: Move non-linearity application to layer wrapper, allowing
             # any arbitrary operation to be optionally activated.
-            ReLUFuser(allowed_parent_types=[NodeKind.Convolution, NodeKind.InnerProduct,
-                                            NodeKind.BatchNorm]),
+            ReLUFuser(allowed_parent_types=[NodeKind.Convolution]),
 
             # Rename nodes
-            # Slashes are used for scoping in TensorFlow. Replace slashes
-            # in node names with underscores.
+            # Replace slashes in node names with underscores.
             # (Caffe's GoogLeNet implementation uses slashes)
             NodeRenamer(lambda node: node.name.replace('/', '_'))
         ]
@@ -253,19 +232,8 @@ class TrinnityTransformer(object):
     def transform_data(self):
         if self.params is None:
             transformers = [
-
-                # Reshape the parameters to TensorFlow's ordering
-                DataReshaper({
-                    # (c_o, c_i, h, w) -> (h, w, c_i, c_o)
-                    NodeKind.Convolution: (2, 3, 1, 0),
-
-                    # (c_o, c_i) -> (c_i, c_o)
-                    NodeKind.InnerProduct: (1, 0)
-                }),
-
                 # Pre-process batch normalization data
                 BatchNormPreprocessor(),
-
                 # Convert parameters to dictionaries
                 ParameterNamer(),
             ]
@@ -275,8 +243,8 @@ class TrinnityTransformer(object):
 
     def transform_source(self):
         if self.source is None:
-            mapper = TensorFlowMapper(self.graph)
+            mapper = TrinnityMapper(self.graph)
             chains = mapper.map()
-            emitter = TensorFlowEmitter()
+            emitter = TrinnityEmitter()
             self.source = emitter.emit(self.graph.name, chains)
         return self.source
