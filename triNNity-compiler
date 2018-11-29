@@ -5,23 +5,26 @@ import sys
 import numpy as np
 import argparse
 from kaffe import KaffeError, print_stderr
-from kaffe.tensorflow import TensorFlowTransformer
-from kaffe.trinnity import TrinnityTransformer
+
+backends = ['trinnity', 'tensorflow']
 
 def fatal_error(msg):
   print_stderr(msg)
   exit(-1)
 
 def validate_arguments(args):
-  if (args.data_output is not None) and (args.model is None):
-    fatal_error('No input data path provided.')
-  if (args.model is not None) and (args.data_output is None):
-    fatal_error('No output data path provided.')
+  if (not args.backend in backends):
+    fatal_error('Unknown backend selected (valid choices are: ' + ', '.join(backends) + ')')
+  if (args.model is None) and (args.code_output is not None) :
+    fatal_error('Model code generation requested but no input model description provided.')
+  if (args.weights is None) and (args.data_output is not None) :
+    fatal_error('Weight conversion requested but no input weight data provided.')
   if (args.code_output is None) and (args.data_output is None):
     fatal_error('No output paths specified.')
 
 def convert_tensorflow(def_path, caffemodel_path, data_output_path, code_output_path, phase):
   try:
+    from kaffe.tensorflow import TensorFlowTransformer
     transformer = TensorFlowTransformer(def_path, caffemodel_path, phase=phase)
     print_stderr('Compiling for backend: tensorflow')
 
@@ -33,7 +36,7 @@ def convert_tensorflow(def_path, caffemodel_path, data_output_path, code_output_
 
     if code_output_path:
       print_stderr('Generating code for model...')
-      with open(code_output_path, 'wb') as src_out:
+      with open(code_output_path, 'w') as src_out:
         src_out.write(transformer.transform_source())
     print_stderr('Done.')
   except KaffeError as err:
@@ -41,6 +44,7 @@ def convert_tensorflow(def_path, caffemodel_path, data_output_path, code_output_
 
 def convert_trinnity(def_path, caffemodel_path, data_output_path, code_output_path, phase):
   try:
+    from kaffe.trinnity import TrinnityTransformer
     transformer = TrinnityTransformer(def_path, caffemodel_path, phase=phase)
     print_stderr('Compiling for backend: triNNity')
 
@@ -52,7 +56,7 @@ def convert_trinnity(def_path, caffemodel_path, data_output_path, code_output_pa
 
     if code_output_path:
       print_stderr('Generating code for model...')
-      with open(code_output_path, 'wb') as src_out:
+      with open(code_output_path, 'w') as src_out:
         src_out.write(transformer.transform_source())
     print_stderr('Done.')
   except KaffeError as err:
@@ -64,14 +68,19 @@ def main():
     parser.add_argument('--weights', help='Input model data (.caffemodel) path')
     parser.add_argument('--data-output', help='Place converted weights in this directory')
     parser.add_argument('--code-output', help='Generated source code in this directory')
-    parser.add_argument('--backend', default='tensorflow' help='Which backend to use for code generation')
+    parser.add_argument('--backend', default='trinnity', help='Which backend to use for code generation')
     parser.add_argument('-p',
                         '--phase',
                         default='test',
                         help='The phase to convert: test (default) or train')
     args = parser.parse_args()
     validate_arguments(args)
-    convert(args.def_path, args.caffemodel, args.data_output_path, args.code_output_path, args.phase)
+    if (args.backend == 'tensorflow'):
+      convert_tensorflow(args.model, args.weights, args.data_output, args.code_output, args.phase)
+    elif (args.backend == 'trinnity'):
+      convert_trinnity(args.model, args.weights, args.data_output, args.code_output, args.phase)
+    else:
+      fatal_error('No backend selected')
 
 if __name__ == '__main__':
     main()

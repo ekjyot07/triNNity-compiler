@@ -44,7 +44,7 @@ class TensorFlowNode(object):
 
     def format(self, arg):
         '''Returns a string representation for the given value.'''
-        return "'%s'" % arg if isinstance(arg, basestring) else str(arg)
+        return "'%s'" % str(arg)
 
     def pair(self, key, value):
         '''Returns key=formatted(value).'''
@@ -53,10 +53,10 @@ class TensorFlowNode(object):
     def emit(self):
         '''Emits the Python source for this node.'''
         # Format positional arguments
-        args = map(self.format, self.args)
+        args = list(map(self.format, self.args))
         # Format any keyword arguments
         if self.kwargs:
-            args += [self.pair(k, v) for k, v in self.kwargs]
+            args += [(self.pair(k, v)) for k, v in self.kwargs]
         # Set the node name
         args.append(self.pair('name', self.node.name))
         args = ', '.join(args)
@@ -126,6 +126,12 @@ class TensorFlowMapper(NodeMapper):
 
     def map_softmax(self, node):
         return TensorFlowNode('softmax')
+
+    def map_softmax_with_loss(self, node):
+        return TensorFlowNode('softmax_loss')
+
+    def map_accuracy(self, node):
+        return TensorFlowNode('accuracy')
 
     def map_lrn(self, node):
         params = node.parameters

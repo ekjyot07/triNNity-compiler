@@ -122,7 +122,7 @@ class Graph(object):
             data_shape = node.data[0].shape if node.data else '--'
             out_shape = node.output_shape or '--'
             s.append('{:<20} {:<30} {:>20} {:>20}'.format(node.kind, node.name, data_shape,
-                                                          tuple(out_shape)))
+                                                          str(out_shape)))
         return '\n'.join(s)
 
 
