@@ -24,7 +24,6 @@ def get_padding_type(kernel_params, input_shape, output_shape):
         return 'VALID'
     return None
 
-
 class TrinnityNode(object):
     '''An intermediate representation for Trinnity operations.'''
 
@@ -37,6 +36,18 @@ class TrinnityNode(object):
         self.kwargs = kwargs
         # The source Caffe node
         self.node = None
+        # The name/decl of the input buffer
+        self.input_buffer = None
+        self.input_buffer_name = None
+        # The name/decl of the weights buffer
+        self.weights_buffer = None
+        self.weights_buffer_name = None
+        # The name/decl of the bias buffer
+        self.bias_buffer = None
+        self.bias_buffer_name = None
+        # The name/decl of the output buffer (only if not an in-place layer)
+        self.output_buffer = None
+        self.output_buffer_name = None
 
     def format(self, arg):
         '''Returns a string representation for the given value.'''
@@ -54,18 +65,51 @@ class TrinnityNode(object):
         has_relu = 'relu' in self.kwargs and self.kwargs['relu']
 
         # Format any keyword arguments
-        if self.kwargs:
-            args += [(self.pair(k, v)) for k, v in self.kwargs.items() if k != 'relu']
+        # if self.kwargs:
+            # args += [(self.pair(k, v)) for k, v in self.kwargs.items() if k != 'relu']
 
-        if (self.op == 'conv' ):
+        # Select the triNNity primitive corresponding to this op
+        if (self.op == 'conv'):
             self.op = 'triNNity::generic::layer::GenericFusedConvolutionalLayer'
             act = 'triNNity::ACTIVATION_NONE'
             if has_relu:
               act = 'triNNity::ACTIVATION_RELU'
-            args = ', '.join(['float', 'float', 'float', 'triNNity::generic::CONV_DIRECT_SUM_2D', 'triNNity::GEMM_BLOCKED'] + args + ['triNNity::CHW', 'triNNity::BOUND_IMPLICIT_PAD', act, '4', '4', '4'])
+            self.input_buffer_name = self.node.name + '_input'
+            self.weights_buffer_name = self.node.name + '_weights'
+            self.bias_buffer_name = self.node.name + '_bias'
+            self.output_buffer_name = self.node.name + '_output'
+
+            self.input_buffer = 'ACTIVATION_TYPE' + ' * ' + self.input_buffer_name + ' = new ' + 'ACTIVATION_TYPE' + '[' + str(int(args[0])*int(args[1])*int(args[2])) + '];'
+            self.weights_buffer = 'WEIGHT_TYPE' + ' * ' + self.weights_buffer_name + '_weights' + ' = new ' + 'WEIGHT_TYPE' + '[' + str(int(args[0])*int(args[3])*int(args[3])*int(args[6])) + '];'
+            self.bias_buffer = 'WEIGHT_TYPE' + ' * ' + self.bias_buffer_name + '_biases' + ' = new ' + 'WEIGHT_TYPE' + '[' + str(int(args[6])) + '];'
+            self.output_buffer = 'ACTIVATION_TYPE' + ' * ' + self.output_buffer_name + '_output' + ' = new ' + 'ACTIVATION_TYPE' + '[' + str(int(args[6])*int(args[1])*int(args[2])) + '];'
+            args = ', '.join(['ACTIVATION_TYPE', 'WEIGHT_TYPE', 'ACTIVATION_TYPE', 'triNNity::generic::CONV_DIRECT_SUM_2D', 'triNNity::GEMM_BLOCKED'] + args + ['triNNity::CHW', 'triNNity::BOUND_IMPLICIT_PAD', act, 'GEMM_BLOCK_I', 'GEMM_BLOCK_J', 'GEMM_BLOCK_K'])
         else:
             args = ', '.join(args)
-        return '%s<%s> %s(%s);' % (self.op, args, self.node.name, [])
+
+        outputs = []
+        if self.input_buffer:
+            outputs += [self.input_buffer]
+        if self.weights_buffer:
+            outputs += [self.weights_buffer]
+        if self.bias_buffer:
+            outputs += [self.bias_buffer]
+        if self.output_buffer:
+            outputs += [self.output_buffer]
+
+        dynamic_args = []
+        if self.input_buffer_name:
+            dynamic_args += [self.input_buffer_name]
+        if self.weights_buffer_name:
+            dynamic_args += [self.weights_buffer_name]
+        if self.bias_buffer_name:
+            dynamic_args += [self.bias_buffer_name]
+        if self.output_buffer_name:
+            dynamic_args += [self.output_buffer_name]
+
+        outputs += [self.op + '<' + args + '>' + ' ' + self.node.name + '(' + ', '.join(dynamic_args) + ');']
+
+        return outputs
 
 
 class MaybeActivated(object):
@@ -109,6 +153,7 @@ class TrinnityMapper(IRNodeMapper):
             kwargs['group'] = group
         if not node.parameters.bias_term:
             kwargs['biased'] = False
+
         return MaybeActivated(node)('conv', c_i, w_i, h_i, k_w, s_w, s_h, c_o, w_o, h_o, **kwargs)
 
     def map_relu(self, node):
@@ -181,7 +226,7 @@ class TrinnityMapper(IRNodeMapper):
 class TrinnityEmitter(object):
 
     def __init__(self, tab=None):
-        self.tab = tab or ' ' * 4
+        self.tab = tab or ' ' * 2
         self.prefix = ''
 
     def indent(self):
@@ -196,28 +241,17 @@ class TrinnityEmitter(object):
     def emit_imports(self):
         return self.statement('#include <triNNity/generic/layer.h>\n')
 
-    def emit_class_def(self, name):
-        return self.statement('class %s(Network):' % (name))
-
-    def emit_setup_def(self):
-        return self.statement('def setup(self):')
-
     def emit_parents(self, chain):
         assert len(chain)
-        s = '(self.feed('
-        sep = ', \n' + self.prefix + (' ' * len(s))
-        s += sep.join(["'%s'" % parent.name for parent in chain[0].node.parents])
-        return self.statement(s + ')')
+        sep = '\n' + self.prefix
+        s = sep.join(["'%s'" % parent.name for parent in chain[0].node.parents])
+        return self.statement(s)
 
     def emit_node(self, node):
-        return self.statement(' ' * 5 + '.' + node.emit())
+        return ''.join(list(map(lambda x: self.statement(str(x)), node.emit())))
 
     def emit(self, name, chains):
         s = self.emit_imports()
-        s += self.emit_class_def(name)
-        self.indent()
-        s += self.emit_setup_def()
-        self.indent()
         blocks = []
         for chain in chains:
             b = ''
