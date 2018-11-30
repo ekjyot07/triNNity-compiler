@@ -1,10 +1,9 @@
 import numpy as np
 
-from ..errors import KaffeError, print_stderr
-from ..graph import GraphBuilder, NodeMapper
-from ..layers import NodeKind
-from ..transformers import (DataInjector, DataReshaper, NodeRenamer, ReLUFuser,
-                            BatchNormScaleBiasFuser, BatchNormPreprocessor, ParameterNamer)
+from ...util.errors import CompilerError, print_stderr
+from ...frontend.graph import IRGraphBuilder, IRNodeMapper
+from ...frontend.layers import LayerKind
+from ...util.transformers import (DataInjector, DataReshaper, NodeRenamer, ReLUFuser, BatchNormScaleBiasFuser, BatchNormPreprocessor, ParameterNamer)
 
 from . import network
 
@@ -75,7 +74,7 @@ class MaybeActivated(object):
         return TensorFlowNode(*args, **kwargs)
 
 
-class TensorFlowMapper(NodeMapper):
+class TensorFlowMapper(IRNodeMapper):
 
     def get_kernel_params(self, node):
         kernel_params = node.layer.kernel_parameters
@@ -230,7 +229,7 @@ class TensorFlowTransformer(object):
 
     def load(self, def_path, data_path, phase):
         # Build the graph
-        graph = GraphBuilder(def_path, phase).build()
+        graph = IRGraphBuilder(def_path, phase).build()
 
         if data_path is not None:
             # Load and associate learned parameters
@@ -244,8 +243,8 @@ class TensorFlowTransformer(object):
             # Fuse ReLUs
             # TODO: Move non-linearity application to layer wrapper, allowing
             # any arbitrary operation to be optionally activated.
-            ReLUFuser(allowed_parent_types=[NodeKind.Convolution, NodeKind.InnerProduct,
-                                            NodeKind.BatchNorm]),
+            ReLUFuser(allowed_parent_types=[LayerKind.Convolution, LayerKind.InnerProduct,
+                                            LayerKind.BatchNorm]),
 
             # Rename nodes
             # Slashes are used for scoping in TensorFlow. Replace slashes
@@ -266,10 +265,10 @@ class TensorFlowTransformer(object):
                 # Reshape the parameters to TensorFlow's ordering
                 DataReshaper({
                     # (c_o, c_i, h, w) -> (h, w, c_i, c_o)
-                    NodeKind.Convolution: (2, 3, 1, 0),
+                    LayerKind.Convolution: (2, 3, 1, 0),
 
                     # (c_o, c_i) -> (c_i, c_o)
-                    NodeKind.InnerProduct: (1, 0)
+                    LayerKind.InnerProduct: (1, 0)
                 }),
 
                 # Pre-process batch normalization data

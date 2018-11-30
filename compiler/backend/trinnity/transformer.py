@@ -1,10 +1,9 @@
 import numpy as np
 
-from ..errors import KaffeError, print_stderr
-from ..graph import GraphBuilder, NodeMapper
-from ..layers import NodeKind
-from ..transformers import (DataInjector, DataReshaper, NodeRenamer, ReLUFuser,
-                            BatchNormScaleBiasFuser, BatchNormPreprocessor, ParameterNamer)
+from ...util.errors import CompilerError, print_stderr
+from ...frontend.graph import IRGraphBuilder, IRNodeMapper
+from ...frontend.layers import LayerKind
+from ...util.transformers import (DataInjector, DataReshaper, NodeRenamer, ReLUFuser, BatchNormScaleBiasFuser, BatchNormPreprocessor, ParameterNamer)
 
 class TrinnityNode(object):
     '''An intermediate representation for Trinnity operations.'''
@@ -50,7 +49,7 @@ class MaybeActivated(object):
         return TrinnityNode(*args, **kwargs)
 
 
-class TrinnityMapper(NodeMapper):
+class TrinnityMapper(IRNodeMapper):
 
     def map_convolution(self, node):
         kernel_params = node.layer.kernel_parameters
@@ -90,7 +89,7 @@ class TrinnityMapper(NodeMapper):
             pool_op = 'avg_pool'
         else:
             # Stochastic pooling, for instance.
-            raise KaffeError('Unsupported pooling type.')
+            raise CompilerError('Unsupported pooling type.')
         kernel_params = node.layer.kernel_parameters
         kwargs = {'input':'input_arr', 'output':'output_arr', 'weights':'weights_arr'}
         kwargs['biased'] = False
@@ -197,7 +196,7 @@ class TrinnityMapper(NodeMapper):
         try:
             return TrinnityNode(operations[op_code], **kwargs)
         except KeyError:
-            raise KaffeError('Unknown elementwise operation: {}'.format(op_code))
+            raise CompilerError('Unknown elementwise operation: {}'.format(op_code))
 
     def commit(self, chains):
         return chains
@@ -266,7 +265,7 @@ class TrinnityTransformer(object):
 
     def load(self, def_path, data_path, phase):
         # Build the graph
-        graph = GraphBuilder(def_path, phase).build()
+        graph = IRGraphBuilder(def_path, phase).build()
 
         if data_path is not None:
             # Load and associate learned parameters
@@ -280,7 +279,7 @@ class TrinnityTransformer(object):
             # Fuse ReLUs
             # TODO: Move non-linearity application to layer wrapper, allowing
             # any arbitrary operation to be optionally activated.
-            ReLUFuser(allowed_parent_types=[NodeKind.Convolution]),
+            ReLUFuser(allowed_parent_types=[LayerKind.Convolution]),
 
             # Rename nodes
             # Replace slashes in node names with underscores.

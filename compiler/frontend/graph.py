@@ -1,11 +1,11 @@
 from google.protobuf import text_format
 
-from .caffe import get_caffe_resolver
-from .errors import KaffeError, print_stderr
-from .layers import LayerAdapter, LayerType, NodeKind, NodeDispatch
+from ..util.caffe import get_caffe_resolver
+from ..util.errors import CompilerError, print_stderr
+from .layers import LayerAdapter, LayerType, LayerKind, LayerDispatch
 from .shapes import TensorShape
 
-class Node(object):
+class IRNode(object):
 
     def __init__(self, name, kind, layer=None):
         self.name = name
@@ -31,7 +31,7 @@ class Node(object):
 
     def get_only_parent(self):
         if len(self.parents) != 1:
-            raise KaffeError('Node (%s) expected to have 1 parent. Found %s.' %
+            raise CompilerError('IRNode (%s) expected to have 1 parent. Found %s.' %
                              (self, len(self.parents)))
         return self.parents[0]
 
@@ -47,8 +47,7 @@ class Node(object):
     def __repr__(self):
         return '%s (0x%x)' % (self.name, id(self))
 
-
-class Graph(object):
+class IRGraph(object):
 
     def __init__(self, nodes=None, name=None):
         self.nodes = nodes or []
@@ -63,7 +62,7 @@ class Graph(object):
         try:
             return self.node_lut[name]
         except KeyError:
-            raise KaffeError('Layer not found: %s' % name)
+            raise CompilerError('Layer not found: %s' % name)
 
     def get_input_nodes(self):
         return [node for node in self.nodes if len(node.parents) == 0]
@@ -79,7 +78,7 @@ class Graph(object):
 
         def visit(node):
             if node in temp_marked:
-                raise KaffeError('Graph is not a DAG.')
+                raise CompilerError('IRGraph is not a DAG.')
             if node in perm_marked:
                 return
             temp_marked.add(node)
@@ -96,18 +95,18 @@ class Graph(object):
     def compute_output_shapes(self):
         sorted_nodes = self.topologically_sorted()
         for node in sorted_nodes:
-            node.output_shape = TensorShape(*NodeKind.compute_output_shape(node))
+            node.output_shape = TensorShape(*LayerKind.compute_output_shape(node))
 
     def replaced(self, new_nodes):
-        return Graph(nodes=new_nodes, name=self.name)
+        return IRGraph(nodes=new_nodes, name=self.name)
 
     def transformed(self, transformers):
         graph = self
         for transformer in transformers:
             graph = transformer(graph)
             if graph is None:
-                raise KaffeError('Transformer failed: {}'.format(transformer))
-            assert isinstance(graph, Graph)
+                raise CompilerError('Transformer failed: {}'.format(transformer))
+            assert isinstance(graph, IRGraph)
         return graph
 
     def __contains__(self, key):
@@ -125,8 +124,7 @@ class Graph(object):
                                                           str(out_shape)))
         return '\n'.join(s)
 
-
-class GraphBuilder(object):
+class IRGraphBuilder(object):
     '''Constructs a model graph from a Caffe protocol buffer definition.'''
 
     def __init__(self, def_path, phase='test'):
@@ -171,13 +169,13 @@ class GraphBuilder(object):
 
     def make_node(self, layer):
         '''Create a graph node for the given layer.'''
-        kind = NodeKind.map_raw_kind(layer.type)
+        kind = LayerKind.map_raw_kind(layer.type)
         if kind is None:
-            raise KaffeError('Unknown layer type encountered: %s' % layer.type)
+            raise CompilerError('Unknown layer type encountered: %s' % layer.type)
         # We want to use the layer's top names (the "output" names), rather than the
         # name attribute, which is more of readability thing than a functional one.
         # Other layers will refer to a node by its "top name".
-        return Node(layer.name, kind, layer=layer)
+        return IRNode(layer.name, kind, layer=layer)
 
     def make_input_nodes(self):
         '''
@@ -187,14 +185,14 @@ class GraphBuilder(object):
         was not treated as a first-class layer in the prototext.
         Newer models use the "Input layer" type.
         '''
-        nodes = [Node(name, NodeKind.Data) for name in self.params.input]
+        nodes = [IRNode(name, LayerKind.Data) for name in self.params.input]
         if len(nodes):
             input_dim = map(int, self.params.input_dim)
             if not input_dim:
                 if len(self.params.input_shape) > 0:
                     input_dim = map(int, self.params.input_shape[0].dim)
                 else:
-                    raise KaffeError('Dimensions for input not specified.')
+                    raise CompilerError('Dimensions for input not specified.')
             for node in nodes:
                 node.output_shape = tuple(input_dim)
         return nodes
@@ -211,7 +209,7 @@ class GraphBuilder(object):
         nodes = self.make_input_nodes()
         nodes += [self.make_node(layer) for layer in layers]
         # Initialize the graph
-        graph = Graph(nodes=nodes, name=self.params.name)
+        graph = IRGraph(nodes=nodes, name=self.params.name)
         # Connect the nodes
         #
         # A note on layers and outputs:
@@ -233,7 +231,7 @@ class GraphBuilder(object):
                     parent_node = graph.get_node(input_name)
                 node.add_parent(parent_node)
             if len(layer.top)>1:
-                raise KaffeError('Multiple top nodes are not supported.')
+                raise CompilerError('Multiple top nodes are not supported.')
             for output_name in layer.top:
                 if output_name == layer.name:
                     # Output is named the same as the node. No further action required.
@@ -255,8 +253,7 @@ class GraphBuilder(object):
         graph.compute_output_shapes()
         return graph
 
-
-class NodeMapper(NodeDispatch):
+class IRNodeMapper(LayerDispatch):
 
     def __init__(self, graph):
         self.graph = graph
@@ -274,7 +271,7 @@ class NodeMapper(NodeDispatch):
                 parent = node.get_only_parent()
                 for chain in chains:
                     if chain[-1] == parent:
-                        # Node is part of an existing chain.
+                        # IRNode is part of an existing chain.
                         attach_to_chain = chain
                         break
             if attach_to_chain is None:

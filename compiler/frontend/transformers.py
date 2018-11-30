@@ -7,8 +7,8 @@ A transformer is a callable that accepts a graph and returns a transformed versi
 import numpy as np
 
 from .caffe import get_caffe_resolver, has_pycaffe
-from .errors import KaffeError, print_stderr
-from .layers import NodeKind
+from .util.errors import CompilerError, print_stderr
+from .layers import LayerKind
 
 
 class DataInjector(object):
@@ -73,7 +73,7 @@ class DataInjector(object):
         # The Caffe-backend does not suffer from this problem.
         data = list(data)
         squeeze_indices = [1]  # Squeeze biases.
-        if node.kind == NodeKind.InnerProduct:
+        if node.kind == LayerKind.InnerProduct:
             squeeze_indices.append(0)  # Squeeze FC.
         for idx in squeeze_indices:
             data[idx] = np.squeeze(data[idx])
@@ -92,7 +92,7 @@ class DataInjector(object):
 class DataReshaper(object):
 
     def __init__(self, mapping, replace=True):
-        # A dictionary mapping NodeKind to the transposed order.
+        # A dictionary mapping LayerKind to the transposed order.
         self.mapping = mapping
         # The node kinds eligible for reshaping
         self.reshaped_node_types = self.mapping.keys()
@@ -105,14 +105,14 @@ class DataReshaper(object):
             parent = node.get_only_parent()
             s = parent.output_shape
             return s.height > 1 or s.width > 1
-        except KaffeError:
+        except CompilerError:
             return False
 
     def map(self, node_kind):
         try:
             return self.mapping[node_kind]
         except KeyError:
-            raise KaffeError('Ordering not found for node kind: {}'.format(node_kind))
+            raise CompilerError('Ordering not found for node kind: {}'.format(node_kind))
 
     def __call__(self, graph):
         for node in graph.nodes:
@@ -125,7 +125,7 @@ class DataReshaper(object):
                 continue
             transpose_order = self.map(node.kind)
             weights = node.data[0]
-            if (node.kind == NodeKind.InnerProduct) and self.has_spatial_parent(node):
+            if (node.kind == LayerKind.InnerProduct) and self.has_spatial_parent(node):
                 # The FC layer connected to the spatial layer needs to be
                 # re-wired to match the new spatial ordering.
                 in_shape = node.get_only_parent().output_shape
@@ -133,7 +133,7 @@ class DataReshaper(object):
                 output_channels = fc_shape[0]
                 weights = weights.reshape((output_channels, in_shape.channels, in_shape.height,
                                            in_shape.width))
-                weights = weights.transpose(self.map(NodeKind.Convolution))
+                weights = weights.transpose(self.map(LayerKind.Convolution))
                 node.reshaped_data = weights.reshape(fc_shape[transpose_order[0]],
                                                      fc_shape[transpose_order[1]])
             else:
@@ -200,7 +200,7 @@ class ReLUFuser(SubNodeFuser):
 
     def is_eligible_pair(self, parent, child):
         return ((self.allowed_parent_types is None or parent.kind in self.allowed_parent_types) and
-                child.kind == NodeKind.ReLU)
+                child.kind == LayerKind.ReLU)
 
     def merge(self, parent, _):
         parent.metadata['relu'] = True
@@ -217,7 +217,7 @@ class BatchNormScaleBiasFuser(SubNodeFuser):
     '''
 
     def is_eligible_pair(self, parent, child):
-        return (parent.kind == NodeKind.BatchNorm and child.kind == NodeKind.Scale and
+        return (parent.kind == LayerKind.BatchNorm and child.kind == LayerKind.Scale and
                 child.parameters.axis == 1 and child.parameters.bias_term == True)
 
     def merge(self, parent, child):
@@ -232,7 +232,7 @@ class BatchNormPreprocessor(object):
 
     def __call__(self, graph):
         for node in graph.nodes:
-            if node.kind != NodeKind.BatchNorm:
+            if node.kind != LayerKind.BatchNorm:
                 continue
             assert node.data is not None
             assert len(node.data) == 3
@@ -274,11 +274,11 @@ class ParameterNamer(object):
         for node in graph.nodes:
             if node.data is None:
                 continue
-            if node.kind in (NodeKind.Convolution, NodeKind.InnerProduct):
+            if node.kind in (LayerKind.Convolution, LayerKind.InnerProduct):
                 names = ('weights',)
                 if node.parameters.bias_term:
                     names += ('biases',)
-            elif node.kind == NodeKind.BatchNorm:
+            elif node.kind == LayerKind.BatchNorm:
                 names = ('mean', 'variance')
                 if len(node.data) == 4:
                     names += ('scale', 'offset')

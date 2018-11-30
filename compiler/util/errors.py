@@ -1,6 +1,6 @@
 import sys
 
-class KaffeError(Exception):
+class CompilerError(Exception):
     pass
 
 def print_stderr(msg):
