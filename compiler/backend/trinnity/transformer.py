@@ -34,13 +34,13 @@ class TrinnityNode(object):
         # Positional arguments for the operation
         self.args = args
         # Keyword arguments for the operation
-        self.kwargs = list(kwargs.items())
+        self.kwargs = kwargs
         # The source Caffe node
         self.node = None
 
     def format(self, arg):
         '''Returns a string representation for the given value.'''
-        return "'%s'" % str(arg)
+        return "%s" % str(arg)
 
     def pair(self, key, value):
         '''Returns key=formatted(value).'''
@@ -50,13 +50,22 @@ class TrinnityNode(object):
         '''Emits the Python source for this node.'''
         # Format positional arguments
         args = list(map(self.format, self.args))
+
+        has_relu = 'relu' in self.kwargs and self.kwargs['relu']
+
         # Format any keyword arguments
         if self.kwargs:
-            args += [(self.pair(k, v)) for k, v in self.kwargs]
-        # Set the node name
-        args.append(self.pair('name', self.node.name))
-        args = ', '.join(args)
-        return '%s(%s)' % (self.op, args)
+            args += [(self.pair(k, v)) for k, v in self.kwargs.items() if k != 'relu']
+
+        if (self.op == 'conv' ):
+            self.op = 'triNNity::generic::layer::GenericFusedConvolutionalLayer'
+            act = 'triNNity::ACTIVATION_NONE'
+            if has_relu:
+              act = 'triNNity::ACTIVATION_RELU'
+            args = ', '.join(['float', 'float', 'float', 'triNNity::generic::CONV_DIRECT_SUM_2D', 'triNNity::GEMM_BLOCKED'] + args + ['triNNity::CHW', 'triNNity::BOUND_IMPLICIT_PAD', act, '4', '4', '4'])
+        else:
+            args = ', '.join(args)
+        return '%s<%s> %s(%s);' % (self.op, args, self.node.name, [])
 
 
 class MaybeActivated(object):
@@ -65,6 +74,8 @@ class MaybeActivated(object):
         self.inject_kwargs = {}
         if node.metadata.get('relu', False) != default:
             self.inject_kwargs['relu'] = not default
+        else:
+            self.inject_kwargs['relu'] = default
 
     def __call__(self, *args, **kwargs):
         kwargs.update(self.inject_kwargs)
@@ -91,14 +102,14 @@ class TrinnityMapper(IRNodeMapper):
         c_i = node.parents[0].output_shape[1]
         h_i = node.parents[0].output_shape[2]
         w_i = node.parents[0].output_shape[3]
+        h_o = int(h_i / s_h)
+        w_o = int(w_i / s_w)
         group = node.parameters.group
         if group != 1:
             kwargs['group'] = group
         if not node.parameters.bias_term:
             kwargs['biased'] = False
-        assert kernel_params.kernel_h == h
-        assert kernel_params.kernel_w == w
-        return MaybeActivated(node)('conv', c_i, h_i, w_i, c_o, k_h, k_w, s_h, s_w, **kwargs)
+        return MaybeActivated(node)('conv', c_i, w_i, h_i, k_w, s_w, s_h, c_o, w_o, h_o, **kwargs)
 
     def map_relu(self, node):
         return TrinnityNode('relu')
@@ -183,7 +194,7 @@ class TrinnityEmitter(object):
         return self.prefix + s + '\n'
 
     def emit_imports(self):
-        return self.statement('#include <triNNity/generic/layer.h>')
+        return self.statement('#include <triNNity/generic/layer.h>\n')
 
     def emit_class_def(self, name):
         return self.statement('class %s(Network):' % (name))
