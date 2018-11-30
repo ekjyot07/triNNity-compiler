@@ -5,36 +5,58 @@ from ...frontend.graph import IRGraphBuilder, IRNodeMapper
 from ...frontend.layers import LayerKind
 from ...util.transformers import (DataInjector, DataReshaper, NodeRenamer, ReLUFuser, BatchNormScaleBiasFuser, BatchNormPreprocessor, ParameterNamer)
 
+def get_padding_type(kernel_params, input_shape, output_shape):
+    '''Translates Caffe's numeric padding to one of ('SAME', 'VALID').
+    Caffe supports arbitrary padding values, while Trinnity only
+    supports 'SAME' and 'VALID' modes. So, not all Caffe paddings
+    can be translated to Trinnity. There are some subtleties to
+    how the padding edge-cases are handled. These are described here:
+    https://github.com/Yangqing/caffe2/blob/master/caffe2/proto/caffe2_legacy.proto
+    '''
+    k_h, k_w, s_h, s_w, p_h, p_w = kernel_params
+    s_o_h = np.ceil(input_shape.height / float(s_h))
+    s_o_w = np.ceil(input_shape.width / float(s_w))
+    if (output_shape.height == s_o_h) and (output_shape.width == s_o_w):
+        return 'SAME'
+    v_o_h = np.ceil((input_shape.height - k_h + 1.0) / float(s_h))
+    v_o_w = np.ceil((input_shape.width - k_w + 1.0) / float(s_w))
+    if (output_shape.height == v_o_h) and (output_shape.width == v_o_w):
+        return 'VALID'
+    return None
+
+
 class TrinnityNode(object):
     '''An intermediate representation for Trinnity operations.'''
 
     def __init__(self, op, *args, **kwargs):
         # A string corresponding to the Trinnity operation
         self.op = op
+        # Positional arguments for the operation
         self.args = args
-        self.kwargs = kwargs
+        # Keyword arguments for the operation
+        self.kwargs = list(kwargs.items())
         # The source Caffe node
         self.node = None
-        # Whether this operation has weights
-        self.has_weights = False
+
+    def format(self, arg):
+        '''Returns a string representation for the given value.'''
+        return "'%s'" % str(arg)
+
+    def pair(self, key, value):
+        '''Returns key=formatted(value).'''
+        return '%s=%s' % (key, self.format(value))
 
     def emit(self):
-        '''Emits the C++ code for this node.'''
-        # Format static arguments
-        template_args = list(map(str, self.args))
-        template_args = ', '.join(template_args)
-        # Format dynamic arguments
-        dynamic_args = [self.kwargs['input']]
-
-        if (self.has_weights):
-            dynamic_args += [self.kwargs['weights']]
-
-        if (self.kwargs['biased']):
-            dynamic_args += [self.kwargs['biases']]
-
-        dynamic_args = ', '.join(dynamic_args)
-
-        return '%s<%s> %s(%s);' % (self.op, template_args, self.node.name, dynamic_args)
+        '''Emits the Python source for this node.'''
+        # Format positional arguments
+        args = list(map(self.format, self.args))
+        # Format any keyword arguments
+        if self.kwargs:
+            args += [(self.pair(k, v)) for k, v in self.kwargs]
+        # Set the node name
+        args.append(self.pair('name', self.node.name))
+        args = ', '.join(args)
+        return '%s(%s)' % (self.op, args)
 
 
 class MaybeActivated(object):
@@ -51,35 +73,35 @@ class MaybeActivated(object):
 
 class TrinnityMapper(IRNodeMapper):
 
-    def map_convolution(self, node):
+    def get_kernel_params(self, node):
         kernel_params = node.layer.kernel_parameters
-        k = 3
-        h = kernel_params.kernel_h
-        w = kernel_params.kernel_w
-        m = node.output_shape[1]
-        c = node.parents[0].output_shape[1]
-        sw = kernel_params.stride_w
-        sh = kernel_params.stride_h
-        ow = w / sw
-        oh = h / sh
+        input_shape = node.get_only_parent().output_shape
+        padding = get_padding_type(kernel_params, input_shape, node.output_shape)
+        # Only emit the padding if it's not the default value.
+        padding = {'padding': padding} if padding != 'SAME' else {}
+        return (kernel_params, padding)
 
-        kwargs = {'input':'input_arr', 'output':'output_arr', 'weights':'weights_arr'}
+    def map_convolution(self, node):
+        (kernel_params, kwargs) = self.get_kernel_params(node)
+        k_h = kernel_params.kernel_h
+        k_w = kernel_params.kernel_w
+        s_h = kernel_params.stride_h
+        s_w = kernel_params.stride_w
+        c_o = node.output_shape[1]
+        c_i = node.parents[0].output_shape[1]
+        h_i = node.parents[0].output_shape[2]
+        w_i = node.parents[0].output_shape[3]
         group = node.parameters.group
         if group != 1:
             kwargs['group'] = group
-
         if not node.parameters.bias_term:
             kwargs['biased'] = False
-        else:
-            kwargs['biased'] = True
-            kwargs['biases'] = 'bias_arr'
-
-        return MaybeActivated(node)('triNNity::generic::layer::GenericFusedConvolutionalLayer', c, w, h, k, sw, sh, m, ow, oh, **kwargs)
+        assert kernel_params.kernel_h == h
+        assert kernel_params.kernel_w == w
+        return MaybeActivated(node)('conv', c_i, h_i, w_i, c_o, k_h, k_w, s_h, s_w, **kwargs)
 
     def map_relu(self, node):
-        kwargs = {'input':'input_arr', 'output':'output_arr', 'weights':'weights_arr'}
-        kwargs['biased'] = False
-        return TrinnityNode('relu', **kwargs)
+        return TrinnityNode('relu')
 
     def map_pooling(self, node):
         pool_type = node.parameters.pool
@@ -90,52 +112,25 @@ class TrinnityMapper(IRNodeMapper):
         else:
             # Stochastic pooling, for instance.
             raise CompilerError('Unsupported pooling type.')
-        kernel_params = node.layer.kernel_parameters
-        kwargs = {'input':'input_arr', 'output':'output_arr', 'weights':'weights_arr'}
-        kwargs['biased'] = False
+        (kernel_params, padding) = self.get_kernel_params(node)
         return TrinnityNode(pool_op, kernel_params.kernel_h, kernel_params.kernel_w,
-                              kernel_params.stride_h, kernel_params.stride_w, **kwargs)
+                              kernel_params.stride_h, kernel_params.stride_w, **padding)
 
     def map_inner_product(self, node):
         #TODO: Axis
         assert node.parameters.axis == 1
         #TODO: Unbiased
         assert node.parameters.bias_term == True
-        kwargs = {'input':'input_arr', 'output':'output_arr', 'weights':'weights_arr'}
-        if not node.parameters.bias_term:
-            kwargs['biased'] = False
-        else:
-            kwargs['biased'] = True
-            kwargs['biases'] = 'bias_arr'
-        return MaybeActivated(node)('fc', node.parameters.num_output, **kwargs)
+        return MaybeActivated(node)('fc', node.parameters.num_output)
 
     def map_softmax(self, node):
-        kwargs = {'input':'input_arr', 'output':'output_arr', 'weights':'weights_arr'}
-        if not node.parameters.bias_term:
-            kwargs['biased'] = False
-        else:
-            kwargs['biased'] = True
-            kwargs['biases'] = 'bias_arr'
-        return TrinnityNode('softmax', **kwargs)
+        return TrinnityNode('softmax')
 
     def map_softmax_with_loss(self, node):
-        kwargs = {'input':'input_arr', 'output':'output_arr', 'weights':'weights_arr'}
-        if not node.parameters.bias_term:
-            kwargs['biased'] = False
-        else:
-            kwargs['biased'] = True
-            kwargs['biases'] = 'bias_arr'
-        return TrinnityNode('softmax_loss', **kwargs)
+        return TrinnityNode('softmax_loss')
 
     def map_accuracy(self, node):
-        kwargs = {'input':'input_arr', 'output':'output_arr', 'weights':'weights_arr'}
-        if not node.parameters.bias_term:
-            kwargs['biased'] = False
-        else:
-            kwargs['biased'] = True
-            kwargs['biases'] = 'bias_arr'
-        return TrinnityNode('accuracy', **kwargs)
-
+        return TrinnityNode('accuracy')
 
     def map_lrn(self, node):
         params = node.parameters
@@ -146,55 +141,25 @@ class TrinnityMapper(IRNodeMapper):
         # just scales by alpha (as does Krizhevsky's paper).
         # We'll account for that here.
         alpha = params.alpha / float(params.local_size)
-        kwargs = {'input':'input_arr', 'output':'output_arr', 'weights':'weights_arr'}
-        if not node.parameters.bias_term:
-            kwargs['biased'] = False
-        else:
-            kwargs['biased'] = True
-            kwargs['biases'] = 'bias_arr'
-        return TrinnityNode('lrn', int(params.local_size / 2), alpha, params.beta, **kwargs)
+        return TrinnityNode('lrn', int(params.local_size / 2), alpha, params.beta)
 
     def map_concat(self, node):
         axis = (2, 3, 1, 0)[node.parameters.axis]
-        kwargs = {'input':'input_arr', 'output':'output_arr', 'weights':'weights_arr'}
-        if not node.parameters.bias_term:
-            kwargs['biased'] = False
-        else:
-            kwargs['biased'] = True
-            kwargs['biases'] = 'bias_arr'
-        return TrinnityNode('concat', axis, **kwargs)
+        return TrinnityNode('concat', axis)
 
     def map_dropout(self, node):
-        kwargs = {'input':'input_arr', 'output':'output_arr', 'weights':'weights_arr'}
-        if not node.parameters.bias_term:
-            kwargs['biased'] = False
-        else:
-            kwargs['biased'] = True
-            kwargs['biases'] = 'bias_arr'
-        return TrinnityNode('dropout', node.parameters.dropout_ratio, **kwargs)
+        return TrinnityNode('dropout', node.parameters.dropout_ratio)
 
     def map_batch_norm(self, node):
         scale_offset = len(node.data) == 4
         kwargs = {} if scale_offset else {'scale_offset': False}
-        kwargs += {'input':'input_arr', 'output':'output_arr', 'weights':'weights_arr'}
-        if not node.parameters.bias_term:
-            kwargs['biased'] = False
-        else:
-            kwargs['biased'] = True
-            kwargs['biases'] = 'bias_arr'
         return MaybeActivated(node, default=False)('batch_normalization', **kwargs)
 
     def map_eltwise(self, node):
         operations = {0: 'multiply', 1: 'add', 2: 'max'}
         op_code = node.parameters.operation
-        kwargs = {'input':'input_arr', 'output':'output_arr', 'weights':'weights_arr'}
-        if not node.parameters.bias_term:
-            kwargs['biased'] = False
-        else:
-            kwargs['biased'] = True
-            kwargs['biases'] = 'bias_arr'
         try:
-            return TrinnityNode(operations[op_code], **kwargs)
+            return TrinnityNode(operations[op_code])
         except KeyError:
             raise CompilerError('Unknown elementwise operation: {}'.format(op_code))
 
@@ -218,8 +183,7 @@ class TrinnityEmitter(object):
         return self.prefix + s + '\n'
 
     def emit_imports(self):
-        return (self.statement('#include <triNNity/layer.h>') +
-                self.statement('#include <triNNity/generic/layer.h>'))
+        return self.statement('#include <triNNity/generic/layer.h>')
 
     def emit_class_def(self, name):
         return self.statement('class %s(Network):' % (name))
@@ -279,10 +243,12 @@ class TrinnityTransformer(object):
             # Fuse ReLUs
             # TODO: Move non-linearity application to layer wrapper, allowing
             # any arbitrary operation to be optionally activated.
-            ReLUFuser(allowed_parent_types=[LayerKind.Convolution]),
+            ReLUFuser(allowed_parent_types=[LayerKind.Convolution, LayerKind.InnerProduct,
+                                            LayerKind.BatchNorm]),
 
             # Rename nodes
-            # Replace slashes in node names with underscores.
+            # Slashes are used for scoping in Trinnity. Replace slashes
+            # in node names with underscores.
             # (Caffe's GoogLeNet implementation uses slashes)
             NodeRenamer(lambda node: node.name.replace('/', '_'))
         ]
@@ -295,8 +261,19 @@ class TrinnityTransformer(object):
     def transform_data(self):
         if self.params is None:
             transformers = [
+
+                # Reshape the parameters to Trinnity's ordering
+                DataReshaper({
+                    # (c_o, c_i, h, w) -> (h, w, c_i, c_o)
+                    LayerKind.Convolution: (2, 3, 1, 0),
+
+                    # (c_o, c_i) -> (c_i, c_o)
+                    LayerKind.InnerProduct: (1, 0)
+                }),
+
                 # Pre-process batch normalization data
                 BatchNormPreprocessor(),
+
                 # Convert parameters to dictionaries
                 ParameterNamer(),
             ]

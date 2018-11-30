@@ -5,9 +5,6 @@ from ...frontend.graph import IRGraphBuilder, IRNodeMapper
 from ...frontend.layers import LayerKind
 from ...util.transformers import (DataInjector, DataReshaper, NodeRenamer, ReLUFuser, BatchNormScaleBiasFuser, BatchNormPreprocessor, ParameterNamer)
 
-from . import network
-
-
 def get_padding_type(kernel_params, input_shape, output_shape):
     '''Translates Caffe's numeric padding to one of ('SAME', 'VALID').
     Caffe supports arbitrary padding values, while TensorFlow only
@@ -81,7 +78,7 @@ class TensorFlowMapper(IRNodeMapper):
         input_shape = node.get_only_parent().output_shape
         padding = get_padding_type(kernel_params, input_shape, node.output_shape)
         # Only emit the padding if it's not the default value.
-        padding = {'padding': padding} if padding != network.DEFAULT_PADDING else {}
+        padding = {'padding': padding} if padding != 'SAME' else {}
         return (kernel_params, padding)
 
     def map_convolution(self, node):
@@ -111,7 +108,7 @@ class TensorFlowMapper(IRNodeMapper):
             pool_op = 'avg_pool'
         else:
             # Stochastic pooling, for instance.
-            raise KaffeError('Unsupported pooling type.')
+            raise CompilerError('Unsupported pooling type.')
         (kernel_params, padding) = self.get_kernel_params(node)
         return TensorFlowNode(pool_op, kernel_params.kernel_h, kernel_params.kernel_w,
                               kernel_params.stride_h, kernel_params.stride_w, **padding)
@@ -161,7 +158,7 @@ class TensorFlowMapper(IRNodeMapper):
         try:
             return TensorFlowNode(operations[op_code])
         except KeyError:
-            raise KaffeError('Unknown elementwise operation: {}'.format(op_code))
+            raise CompilerError('Unknown elementwise operation: {}'.format(op_code))
 
     def commit(self, chains):
         return chains
@@ -183,7 +180,7 @@ class TensorFlowEmitter(object):
         return self.prefix + s + '\n'
 
     def emit_imports(self):
-        return self.statement('from kaffe.tensorflow import Network\n')
+        return self.statement('')
 
     def emit_class_def(self, name):
         return self.statement('class %s(Network):' % (name))
