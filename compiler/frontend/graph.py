@@ -54,6 +54,9 @@ class IRGraph(object):
         self.node_lut = {node.name: node for node in self.nodes}
         self.name = name
 
+        # 'label' is an implicit output node in Caffe
+        self.node_lut['label'] = IRNode('label', 'Label')
+
     def add_node(self, node):
         self.nodes.append(node)
         self.node_lut[node.name] = node

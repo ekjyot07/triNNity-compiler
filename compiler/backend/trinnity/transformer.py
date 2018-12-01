@@ -30,6 +30,7 @@ class TrinnityNode(object):
     def __init__(self, op, *args, **kwargs):
         # A string corresponding to the Trinnity operation
         self.op = op
+        self.orig_op = op
         # Positional arguments for the operation
         self.args = args
         # Keyword arguments for the operation
@@ -48,6 +49,8 @@ class TrinnityNode(object):
         # The name/decl of the output buffer (only if not an in-place layer)
         self.output_buffer = None
         self.output_buffer_name = None
+        # Caffe has some layers that we need to process but basically ignore
+        self.magic_layers = ['data', 'label', 'accuracy', 'softmax_loss']
 
     def format(self, arg):
         '''Returns a string representation for the given value.'''
@@ -64,9 +67,8 @@ class TrinnityNode(object):
 
         has_relu = 'relu' in self.kwargs and self.kwargs['relu']
 
-        # Format any keyword arguments
-        # if self.kwargs:
-            # args += [(self.pair(k, v)) for k, v in self.kwargs.items() if k != 'relu']
+        # Collect allocations
+        allocs = []
 
         # Select the triNNity primitive corresponding to this op
         if (self.op == 'conv'):
@@ -74,28 +76,206 @@ class TrinnityNode(object):
             act = 'triNNity::ACTIVATION_NONE'
             if has_relu:
               act = 'triNNity::ACTIVATION_RELU'
-            self.input_buffer_name = self.node.name + '_input'
+
+            # Set up input buffer
+            if (self.op not in self.magic_layers):
+                papa = self.node.get_only_parent()
+                self.input_buffer_name = papa.name + '_output'
+                self.input_buffer = ''
+            else:
+                self.input_buffer_name = self.node.name + '_input'
+                self.input_buffer = 'ACTIVATION_TYPE' + ' * ' + self.input_buffer_name + ' = new ' + 'ACTIVATION_TYPE' + '[' + str(int(args[0])*int(args[1])*int(args[2])) + '];'
+                allocs += [self.input_buffer + '\n']
+
+            # Set up weights buffer
             self.weights_buffer_name = self.node.name + '_weights'
+            self.weights_buffer = 'WEIGHT_TYPE' + ' * ' + self.weights_buffer_name + ' = new ' + 'WEIGHT_TYPE' + '[' + str(int(args[0])*int(args[3])*int(args[3])*int(args[6])) + '];'
+            allocs += [self.weights_buffer + '\n']
+
+            # Set up bias buffer
             self.bias_buffer_name = self.node.name + '_bias'
+            self.bias_buffer = 'WEIGHT_TYPE' + ' * ' + self.bias_buffer_name + ' = new ' + 'WEIGHT_TYPE' + '[' + str(int(args[6])) + '];'
+            allocs += [self.bias_buffer + '\n']
+
+            # Set up output buffer
             self.output_buffer_name = self.node.name + '_output'
+            self.output_buffer = 'ACTIVATION_TYPE' + ' * ' + self.output_buffer_name + ' = new ' + 'ACTIVATION_TYPE' + '[' + str(int(args[6])*int(args[1])*int(args[2])) + '];'
+            allocs += [self.output_buffer + '\n']
 
-            self.input_buffer = 'ACTIVATION_TYPE' + ' * ' + self.input_buffer_name + ' = new ' + 'ACTIVATION_TYPE' + '[' + str(int(args[0])*int(args[1])*int(args[2])) + '];'
-            self.weights_buffer = 'WEIGHT_TYPE' + ' * ' + self.weights_buffer_name + '_weights' + ' = new ' + 'WEIGHT_TYPE' + '[' + str(int(args[0])*int(args[3])*int(args[3])*int(args[6])) + '];'
-            self.bias_buffer = 'WEIGHT_TYPE' + ' * ' + self.bias_buffer_name + '_biases' + ' = new ' + 'WEIGHT_TYPE' + '[' + str(int(args[6])) + '];'
-            self.output_buffer = 'ACTIVATION_TYPE' + ' * ' + self.output_buffer_name + '_output' + ' = new ' + 'ACTIVATION_TYPE' + '[' + str(int(args[6])*int(args[1])*int(args[2])) + '];'
             args = ', '.join(['ACTIVATION_TYPE', 'WEIGHT_TYPE', 'ACTIVATION_TYPE', 'triNNity::generic::CONV_DIRECT_SUM_2D', 'triNNity::GEMM_BLOCKED'] + args + ['triNNity::CHW', 'triNNity::BOUND_IMPLICIT_PAD', act, 'GEMM_BLOCK_I', 'GEMM_BLOCK_J', 'GEMM_BLOCK_K'])
-        else:
-            args = ', '.join(args)
 
-        outputs = []
-        if self.input_buffer:
-            outputs += [self.input_buffer]
-        if self.weights_buffer:
-            outputs += [self.weights_buffer]
-        if self.bias_buffer:
-            outputs += [self.bias_buffer]
-        if self.output_buffer:
-            outputs += [self.output_buffer]
+        elif (self.op == 'relu'):
+            self.op = 'triNNity::layer::ActivationLayer'
+
+            # Set up input buffer
+            if (self.op not in self.magic_layers):
+                papa = self.node.get_only_parent()
+                self.input_buffer_name = papa.name + '_output'
+                self.input_buffer = ''
+            else:
+                self.input_buffer_name = self.node.name + '_input'
+                self.input_buffer = 'ACTIVATION_TYPE' + ' * ' + self.input_buffer_name + ' = new ' + 'ACTIVATION_TYPE' + '[' + str(int(args[0])*int(args[1])*int(args[2])) + '];'
+                allocs += [self.input_buffer + '\n']
+
+            args = ', '.join(['ACTIVATION_TYPE', 'WEIGHT_TYPE', 'ACTIVATION_TYPE'] + args)
+
+        elif (self.op == 'max_pool'):
+            self.op = 'triNNity::layer::PoolingLayer'
+
+            # Set up input buffer
+            if (self.op not in self.magic_layers):
+                papa = self.node.get_only_parent()
+                self.input_buffer_name = papa.name + '_output'
+                self.input_buffer = ''
+            else:
+                self.input_buffer_name = self.node.name + '_input'
+                self.input_buffer = 'ACTIVATION_TYPE' + ' * ' + self.input_buffer_name + ' = new ' + 'ACTIVATION_TYPE' + '[' + str(int(args[0])*int(args[1])*int(args[2])) + '];'
+                allocs += [self.input_buffer + '\n']
+
+            args = ', '.join(['ACTIVATION_TYPE', 'WEIGHT_TYPE', 'ACTIVATION_TYPE'] + args)
+
+        elif (self.op == 'avg_pool'):
+            self.op = 'triNNity::layer::PoolingLayer'
+
+            # Set up input buffer
+            if (self.op not in self.magic_layers):
+                papa = self.node.get_only_parent()
+                self.input_buffer_name = papa.name + '_output'
+                self.input_buffer = ''
+            else:
+                self.input_buffer_name = self.node.name + '_input'
+                self.input_buffer = 'ACTIVATION_TYPE' + ' * ' + self.input_buffer_name + ' = new ' + 'ACTIVATION_TYPE' + '[' + str(int(args[0])*int(args[1])*int(args[2])) + '];'
+                allocs += [self.input_buffer + '\n']
+
+            args = ', '.join(['ACTIVATION_TYPE', 'WEIGHT_TYPE', 'ACTIVATION_TYPE'] + args)
+
+        elif (self.op == 'fc'):
+            self.op = 'triNNity::layer::FCLayer'
+
+            # Set up input buffer
+            if (self.op not in self.magic_layers):
+                papa = self.node.get_only_parent()
+                self.input_buffer_name = papa.name + '_output'
+                self.input_buffer = ''
+            else:
+                self.input_buffer_name = self.node.name + '_input'
+                self.input_buffer = 'ACTIVATION_TYPE' + ' * ' + self.input_buffer_name + ' = new ' + 'ACTIVATION_TYPE' + '[' + str(int(args[0])*int(args[1])*int(args[2])) + '];'
+                allocs += [self.input_buffer + '\n']
+
+            args = ', '.join(['ACTIVATION_TYPE', 'WEIGHT_TYPE', 'ACTIVATION_TYPE'] + args)
+
+        elif (self.op == 'softmax'):
+            self.op = 'triNNity::layer::SoftmaxLayer'
+
+            # Set up input buffer
+            if (self.op not in self.magic_layers):
+                papa = self.node.get_only_parent()
+                self.input_buffer_name = papa.name + '_output'
+                self.input_buffer = ''
+            else:
+                self.input_buffer_name = self.node.name + '_input'
+                self.input_buffer = 'ACTIVATION_TYPE' + ' * ' + self.input_buffer_name + ' = new ' + 'ACTIVATION_TYPE' + '[' + str(int(args[0])*int(args[1])*int(args[2])) + '];'
+                allocs += [self.input_buffer + '\n']
+
+            args = ', '.join(['ACTIVATION_TYPE', 'WEIGHT_TYPE', 'ACTIVATION_TYPE'] + args)
+
+        elif (self.op == 'lrn'):
+            self.op = 'triNNity::layer::ChannelwiseLRNLayer'
+
+            # Set up input buffer
+            if (self.op not in self.magic_layers):
+                papa = self.node.get_only_parent()
+                self.input_buffer_name = papa.name + '_output'
+                self.input_buffer = ''
+            else:
+                self.input_buffer_name = self.node.name + '_input'
+                self.input_buffer = 'ACTIVATION_TYPE' + ' * ' + self.input_buffer_name + ' = new ' + 'ACTIVATION_TYPE' + '[' + str(int(args[0])*int(args[1])*int(args[2])) + '];'
+                allocs += [self.input_buffer + '\n']
+
+            args = ', '.join(['ACTIVATION_TYPE', 'WEIGHT_TYPE', 'ACTIVATION_TYPE'] + args)
+
+        elif (self.op == 'concat'):
+            self.op = 'triNNity::layer::ChannelwiseConcatLayer'
+
+            # Set up input buffer
+            if (self.op not in self.magic_layers):
+                papa = self.node.get_only_parent()
+                self.input_buffer_name = papa.name + '_output'
+                self.input_buffer = ''
+            else:
+                self.input_buffer_name = self.node.name + '_input'
+                self.input_buffer = 'ACTIVATION_TYPE' + ' * ' + self.input_buffer_name + ' = new ' + 'ACTIVATION_TYPE' + '[' + str(int(args[0])*int(args[1])*int(args[2])) + '];'
+                allocs += [self.input_buffer + '\n']
+
+            args = ', '.join(['ACTIVATION_TYPE', 'WEIGHT_TYPE', 'ACTIVATION_TYPE'] + args)
+
+        elif (self.op == 'batch_normalization'):
+            self.op = 'triNNity::layer::BatchNormalizationLayer'
+
+            # Set up input buffer
+            if (self.op not in self.magic_layers):
+                papa = self.node.get_only_parent()
+                self.input_buffer_name = papa.name + '_output'
+                self.input_buffer = ''
+            else:
+                self.input_buffer_name = self.node.name + '_input'
+                self.input_buffer = 'ACTIVATION_TYPE' + ' * ' + self.input_buffer_name + ' = new ' + 'ACTIVATION_TYPE' + '[' + str(int(args[0])*int(args[1])*int(args[2])) + '];'
+                allocs += [self.input_buffer + '\n']
+
+            args = ', '.join(['ACTIVATION_TYPE', 'WEIGHT_TYPE', 'ACTIVATION_TYPE'] + args)
+
+        elif (self.op == 'multiply'):
+            self.op = 'triNNity::layer::EltwiseLayer'
+            self.elt_op = 'triNNity::ELTWISE_MUL'
+
+            # Set up input buffer
+            if (self.op not in self.magic_layers):
+                papa = self.node.get_only_parent()
+                self.input_buffer_name = papa.name + '_output'
+                self.input_buffer = ''
+            else:
+                self.input_buffer_name = self.node.name + '_input'
+                self.input_buffer = 'ACTIVATION_TYPE' + ' * ' + self.input_buffer_name + ' = new ' + 'ACTIVATION_TYPE' + '[' + str(int(args[0])*int(args[1])*int(args[2])) + '];'
+                allocs += [self.input_buffer + '\n']
+
+            args = ', '.join(['ACTIVATION_TYPE', 'WEIGHT_TYPE', 'ACTIVATION_TYPE'] + args)
+
+        elif (self.op == 'add'):
+            self.op = 'triNNity::layer::EltwiseLayer'
+            self.elt_op = 'triNNity::ELTWISE_ADD'
+
+            # Set up input buffer
+            if (self.op not in self.magic_layers):
+                papa = self.node.get_only_parent()
+                self.input_buffer_name = papa.name + '_output'
+                self.input_buffer = ''
+            else:
+                self.input_buffer_name = self.node.name + '_input'
+                self.input_buffer = 'ACTIVATION_TYPE' + ' * ' + self.input_buffer_name + ' = new ' + 'ACTIVATION_TYPE' + '[' + str(int(args[0])*int(args[1])*int(args[2])) + '];'
+                allocs += [self.input_buffer + '\n']
+
+            args = ', '.join(['ACTIVATION_TYPE', 'WEIGHT_TYPE', 'ACTIVATION_TYPE'] + args)
+
+        elif (self.op == 'max'):
+            self.op = 'triNNity::layer::EltwiseLayer'
+            self.elt_op = 'triNNity::ELTWISE_MAX'
+
+            # Set up input buffer
+            if (self.op not in self.magic_layers):
+                papa = self.node.get_only_parent()
+                self.input_buffer_name = papa.name + '_output'
+                self.input_buffer = ''
+            else:
+                self.input_buffer_name = self.node.name + '_input'
+                self.input_buffer = 'ACTIVATION_TYPE' + ' * ' + self.input_buffer_name + ' = new ' + 'ACTIVATION_TYPE' + '[' + str(int(args[0])*int(args[1])*int(args[2])) + '];'
+                allocs += [self.input_buffer + '\n']
+
+            args = ', '.join(['ACTIVATION_TYPE', 'WEIGHT_TYPE', 'ACTIVATION_TYPE'] + args)
+
+        else:
+            if (self.op not in self.magic_layers):
+                print_stderr('triNNity backend does not implement layer \'' + self.op + '\'')
+            args = ''
 
         dynamic_args = []
         if self.input_buffer_name:
@@ -107,9 +287,11 @@ class TrinnityNode(object):
         if self.output_buffer_name:
             dynamic_args += [self.output_buffer_name]
 
-        outputs += [self.op + '<' + args + '>' + ' ' + self.node.name + '(' + ', '.join(dynamic_args) + ');']
+        outputs = []
+        if (self.orig_op not in self.magic_layers):
+          outputs += [self.op + '<' + args + '>' + ' ' + self.node.name + '(' + ', '.join(dynamic_args) + ');']
 
-        return outputs
+        return (allocs, outputs)
 
 
 class MaybeActivated(object):
@@ -228,6 +410,8 @@ class TrinnityEmitter(object):
     def __init__(self, tab=None):
         self.tab = tab or ' ' * 2
         self.prefix = ''
+        self.collected_allocations = []
+        self.collected_code = []
 
     def indent(self):
         self.prefix += self.tab
@@ -239,7 +423,7 @@ class TrinnityEmitter(object):
         return self.prefix + s + '\n'
 
     def emit_imports(self):
-        return self.statement('#include <triNNity/generic/layer.h>\n')
+        return self.statement('#include <triNNity/layer.h>') + self.statement('#include <triNNity/generic/layer.h>') + self.statement('#include <triNNity/dense/cpu/layer.h>') + '\n'
 
     def emit_parents(self, chain):
         assert len(chain)
@@ -248,18 +432,20 @@ class TrinnityEmitter(object):
         return self.statement(s)
 
     def emit_node(self, node):
-        return ''.join(list(map(lambda x: self.statement(str(x)), node.emit())))
+        (allocs, code) = node.emit()
+        self.collected_allocations += allocs
+        self.collected_code += list(map(lambda x: self.statement(str(x)), code))
 
     def emit(self, name, chains):
         s = self.emit_imports()
-        blocks = []
+
         for chain in chains:
-            b = ''
-            b += self.emit_parents(chain)
             for node in chain:
-                b += self.emit_node(node)
-            blocks.append(b[:-1] + ')')
-        s = s + '\n\n'.join(blocks)
+                self.emit_node(node)
+
+        s += ''.join(self.collected_allocations)
+        s += '\n\n'
+        s += ''.join(self.collected_code)
         return s
 
 
