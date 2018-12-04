@@ -37,15 +37,15 @@ class InfoNode(object):
         # Collect out edges
         edges = []
 
-        c_i = str(int(args[0]))
-        h_i = str(int(args[1]))
-        w_i = str(int(args[2]))
-        k =   str(int(args[3]))
-        s_w = str(int(args[4]))
-        s_h = str(int(args[5]))
-        c_o = str(int(args[6]))
-        w_o = str(int(args[7]))
-        h_o = str(int(args[8]))
+        c_i = str(int(self.args[0]))
+        h_i = str(int(self.args[1]))
+        w_i = str(int(self.args[2]))
+        k =   str(int(self.args[3]))
+        s_w = str(int(self.args[4]))
+        s_h = str(int(self.args[5]))
+        c_o = str(int(self.args[6]))
+        w_o = str(int(self.args[7]))
+        h_o = str(int(self.args[8]))
         sparsity = '0'
 
         outputs = []
@@ -74,10 +74,7 @@ class InfoMapper(IRNodeMapper):
     def get_kernel_params(self, node):
         kernel_params = node.layer.kernel_parameters
         input_shape = node.get_only_parent().output_shape
-        padding = get_padding_type(kernel_params, input_shape, node.output_shape)
-        # Only emit the padding if it's not the default value.
-        padding = {'padding': padding} if padding != 'SAME' else {}
-        return (kernel_params, padding)
+        return (kernel_params, {})
 
     def map_convolution(self, node):
         (kernel_params, kwargs) = self.get_kernel_params(node)
@@ -100,40 +97,40 @@ class InfoMapper(IRNodeMapper):
         return MaybeActivated(node)('conv', c_i, w_i, h_i, k_w, s_w, s_h, c_o, w_o, h_o, **kwargs)
 
     def map_relu(self, node):
-        return InfoNode('relu', c_i, w_i, h_i, k_w, s_w, s_h, c_o, w_o, h_o)
+        return InfoNode('relu', 0, 0, 0, 0, 0, 0, 0, 0, 0)
 
     def map_pooling(self, node):
-        return InfoNode('pooling', c_i, w_i, h_i, k_w, s_w, s_h, c_o, w_o, h_o)
+        return InfoNode('pooling', 0, 0, 0, 0, 0, 0, 0, 0, 0)
 
     def map_inner_product(self, node):
-        return MaybeActivated(node)('fc', c_i, w_i, h_i, k_w, s_w, s_h, c_o, w_o, h_o)
+        return MaybeActivated(node)('fc', 0, 0, 0, 0, 0, 0, 0, 0, 0)
 
     def map_softmax(self, node):
-        return InfoNode('softmax', c_i, w_i, h_i, k_w, s_w, s_h, c_o, w_o, h_o)
+        return InfoNode('softmax', 0, 0, 0, 0, 0, 0, 0, 0, 0)
 
     def map_softmax_with_loss(self, node):
-        return InfoNode('softmax_loss', c_i, w_i, h_i, k_w, s_w, s_h, c_o, w_o, h_o)
+        return InfoNode('softmax_loss', 0, 0, 0, 0, 0, 0, 0, 0, 0)
 
     def map_accuracy(self, node):
-        return InfoNode('accuracy', c_i, w_i, h_i, k_w, s_w, s_h, c_o, w_o, h_o)
+        return InfoNode('accuracy', 0, 0, 0, 0, 0, 0, 0, 0, 0)
 
     def map_lrn(self, node):
-        return InfoNode('lrn', c_i, w_i, h_i, k_w, s_w, s_h, c_o, w_o, h_o)
+        return InfoNode('lrn', 0, 0, 0, 0, 0, 0, 0, 0, 0)
 
     def map_concat(self, node):
-        return InfoNode('concat', c_i, w_i, h_i, k_w, s_w, s_h, c_o, w_o, h_o)
+        return InfoNode('concat', 0, 0, 0, 0, 0, 0, 0, 0, 0)
 
     def map_dropout(self, node):
-        return InfoNode('dropout', c_i, w_i, h_i, k_w, s_w, s_h, c_o, w_o, h_o)
+        return InfoNode('dropout', 0, 0, 0, 0, 0, 0, 0, 0, 0)
 
     def map_batch_norm(self, node):
-        return MaybeActivated(node)('batch_normalization', c_i, w_i, h_i, k_w, s_w, s_h, c_o, w_o, h_o)
+        return MaybeActivated(node)('batch_normalization', 0, 0, 0, 0, 0, 0, 0, 0, 0)
 
     def map_eltwise(self, node):
         operations = {0: 'multiply', 1: 'add', 2: 'max'}
         op_code = node.parameters.operation
         try:
-            return InfoNode(operations[op_code], c_i, w_i, h_i, k_w, s_w, s_h, c_o, w_o, h_o)
+            return InfoNode(operations[op_code], 0, 0, 0, 0, 0, 0, 0, 0, 0)
         except KeyError:
             raise CompilerError('Unknown elementwise operation: {}'.format(op_code))
 
@@ -193,6 +190,8 @@ class InfoTransformer(object):
         self.load(def_path, data_path, phase)
         self.params = None
         self.source = None
+        # Caffe has some layers that we need to process but basically ignore
+        self.magic_layers = ['data', 'label', 'accuracy', 'softmax_loss']
 
     def load(self, def_path, data_path, phase):
         # Build the graph
@@ -254,5 +253,5 @@ class InfoTransformer(object):
             chains = mapper.map()
             emitter = InfoEmitter()
             self.toposource = emitter.emit(self.graph.name, chains)
-            self.layersource = '\n'.join({node.name for node in self.graph.nodes})
+            self.layersource = '\n'.join([node.name for node in self.graph.nodes if node.name not in self.magic_layers])
         return [self.toposource, self.layersource]
