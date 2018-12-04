@@ -79,7 +79,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('model_path', help='Path to the converted model parameters (.npy)')
     parser.add_argument('val_gt', help='Path to validation set ground truth (.txt)')
-    parser.add_argument('imagenet_data_dir', help='ImageNet validation set images directory path')
+    parser.add_argument('data_dir', help='Validation set images directory path')
     parser.add_argument('--model', default='GoogleNet', help='The name of the model to evaluate')
     args = parser.parse_args()
 
