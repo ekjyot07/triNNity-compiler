@@ -5,6 +5,8 @@ from ...frontend.graph import IRGraphBuilder, IRNodeMapper
 from ...frontend.layers import LayerKind
 from ...util.transformers import (DataInjector, DataReshaper, NodeRenamer, ReLUFuser, BatchNormScaleBiasFuser, BatchNormPreprocessor, ParameterNamer)
 
+magic_layers = ['data', 'label', 'accuracy', 'softmax_loss', 'loss', 'top-1', 'top-5']
+
 class InfoNode(object):
     '''An intermediate representation for Info operations.'''
 
@@ -18,8 +20,6 @@ class InfoNode(object):
         self.kwargs = kwargs
         # The source Caffe node
         self.node = None
-        # Caffe has some layers that we need to process but basically ignore
-        self.magic_layers = ['data', 'label', 'accuracy', 'softmax_loss']
 
     def format(self, arg):
         '''Returns a string representation for the given value.'''
@@ -49,7 +49,7 @@ class InfoNode(object):
         sparsity = '0'
 
         outputs = []
-        if (self.orig_op not in self.magic_layers):
+        if (self.orig_op not in magic_layers):
           outputs += [' '.join([c_o, c_i, s_w, w_i, h_i, k, sparsity])]
 
         return (edges, outputs)
@@ -144,7 +144,8 @@ class InfoEmitter(object):
         self.tab = tab or ' ' * 2
         self.prefix = ''
         self.collected_allocations = []
-        self.collected_code = []
+        self.collected_nodes = []
+        self.collected_edges = []
 
     def indent(self):
         self.prefix += self.tab
@@ -155,30 +156,35 @@ class InfoEmitter(object):
     def statement(self, s):
         return self.prefix + s + '\n'
 
-    def emit_imports(self):
-        return self.statement('NODES PARAMS EDGES')
-
-    def emit_parents(self, chain):
-        assert len(chain)
-        sep = '\n' + self.prefix
-        s = sep.join(["'%s'" % parent.name for parent in chain[0].node.parents])
-        return self.statement(s)
+    def get_parents(self, node):
+        return [parent.name for parent in node.node.parents]
 
     def emit_node(self, node):
         (allocs, code) = node.emit()
         self.collected_allocations += allocs
-        self.collected_code += list(map(lambda x: self.statement(str(x)), code))
+        self.collected_nodes += list(map(lambda x: self.statement(str(x)), code))
 
-    def emit(self, name, chains):
-        s = self.emit_imports()
+    def convert_edge(self, edge):
+      src = edge[0]
+      sink = edge[1]
+
+
+    def emit(self, name, chains, lookup_nodes):
 
         for chain in chains:
             for node in chain:
                 self.emit_node(node)
+                self.collected_edges += [(parent, node.node.name) for parent in self.get_parents(node) if parent not in magic_layers and node.node.name not in magic_layers]
 
-        s += ''.join(self.collected_allocations)
-        s += '\n\n'
-        s += ''.join(self.collected_code)
+        def convert_edge(e):
+          e_src = lookup_nodes.index(e[0])
+          e_sink = lookup_nodes.index(e[1])
+          return str(e_src) + ' ' + str(e_sink) + '\n'
+
+        s = ''.join(self.collected_allocations)
+        s += ''.join(self.collected_nodes)
+        s += '\n'
+        s += ''.join(map(convert_edge, self.collected_edges))
         return s
 
 
@@ -190,8 +196,10 @@ class InfoTransformer(object):
         self.load(def_path, data_path, phase)
         self.params = None
         self.source = None
-        # Caffe has some layers that we need to process but basically ignore
-        self.magic_layers = ['data', 'label', 'accuracy', 'softmax_loss']
+        self.no_nodes = 0
+        self.no_params = 7
+        self.no_edges = 0
+
 
     def load(self, def_path, data_path, phase):
         # Build the graph
@@ -252,6 +260,11 @@ class InfoTransformer(object):
             mapper = InfoMapper(self.graph)
             chains = mapper.map()
             emitter = InfoEmitter()
-            self.toposource = emitter.emit(self.graph.name, chains)
-            self.layersource = '\n'.join([node.name for node in self.graph.nodes if node.name not in self.magic_layers])
+            actual_nodes = [node.name for node in self.graph.nodes if node.name not in magic_layers]
+            toposource_body = emitter.emit(self.graph.name, chains, actual_nodes)
+            self.no_nodes = len(actual_nodes)
+            self.no_edges = len(emitter.collected_edges)
+            toposource_header = str(self.no_nodes) + ' ' +  str(self.no_params) + ' ' + str(self.no_edges) + '\n\n'
+            self.toposource = toposource_header + toposource_body
+            self.layersource = '\n'.join(actual_nodes)
         return [self.toposource, self.layersource]
