@@ -523,4 +523,4 @@ class TrinnityTransformer(object):
             chains = mapper.map()
             emitter = TrinnityEmitter()
             self.source = emitter.emit(self.graph.name, chains)
-        return self.source
+        return [self.source]
