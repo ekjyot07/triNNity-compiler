@@ -20,7 +20,11 @@ def validate_arguments(args):
     fatal_error('Model code generation requested but no input model description provided.')
   if (args.weights is None) and (args.data_output is not None) :
     fatal_error('Weight conversion requested but no input weight data provided.')
-  if (args.code_output is None) and (args.data_output is None) and (args.topology_output is None) and (args.layers_output is None):
+  if (args.code_output is None) and \
+     (args.data_output is None) and \
+     (args.topology_output is None) and \
+     (args.layers_output is None) and \
+     (args.constraints_output is None):
     fatal_error('No output paths specified.')
 
 def convert_tensorflow(def_path, caffemodel_path, data_output_path, code_output_path, phase):
