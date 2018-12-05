@@ -1,3 +1,8 @@
+.PHONY: clean
+
+clean:
+	rm -f cifar10.constraints cifar10.layers cifar10.topology cifar10.cpp cifar10.solution cifar10.h cifar10.exe
+
 cifar10.constraints: cifar10.prototxt
 	PYTHONPATH+=:/usr/python/ ../../triNNity-compiler --backend optimizer-info --model cifar10.prototxt --constraints-output=cifar10.constraints
 
