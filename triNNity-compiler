@@ -268,7 +268,7 @@ def convert_trinnity(def_path, caffemodel_path, data_output_path, code_output_pa
   except CompilerError as err:
     fatal_error('Error encountered: {}'.format(err))
 
-def convert_optimizer_info(def_path, caffemodel_path, topo_output_path, layer_output_path, phase):
+def convert_optimizer_info(def_path, caffemodel_path, topo_output_path, layer_output_path, constraints_output_path, phase):
   try:
     from compiler.backend.optimizer_info import InfoTransformer
     transformer = InfoTransformer(def_path, caffemodel_path, phase=phase)
@@ -284,6 +284,11 @@ def convert_optimizer_info(def_path, caffemodel_path, topo_output_path, layer_ou
       with open(layer_output_path, 'w') as src_out:
         src_out.write(transformer.transform_source()[1])
 
+    if constraints_output_path:
+      print_stderr('Generating layer constraint info for model...')
+      with open(constraints_output_path, 'w') as src_out:
+        src_out.write(transformer.transform_source()[2])
+
     print_stderr('Done.')
   except CompilerError as err:
     fatal_error('Error encountered: {}'.format(err))
@@ -296,6 +301,7 @@ def main():
     parser.add_argument('--code-output', help='Generate source code into this file')
     parser.add_argument('--topology-output', help='Generate topology description into this file')
     parser.add_argument('--layers-output', help='Generate layer description into this file')
+    parser.add_argument('--constraints-output', help='Generate layer constraints into this file')
     parser.add_argument('--backend', default='trinnity', help='Which backend to use for code generation')
     parser.add_argument('-p',
                         '--phase',
@@ -308,7 +314,7 @@ def main():
     elif (args.backend == 'trinnity'):
       convert_trinnity(args.model, args.weights, args.data_output, args.code_output, args.phase)
     elif (args.backend == 'optimizer-info'):
-      convert_optimizer_info(args.model, args.weights, args.topology_output, args.layers_output, args.phase)
+      convert_optimizer_info(args.model, args.weights, args.topology_output, args.layers_output, args.constraints_output, args.phase)
     else:
       fatal_error('No backend selected')
 

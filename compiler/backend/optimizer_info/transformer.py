@@ -20,6 +20,11 @@ class InfoNode(object):
         self.kwargs = kwargs
         # The source Caffe node
         self.node = None
+        # The constraints
+        self.constraints = ('chw', '*', 'chw')
+
+        if (op == 'conv'):
+          self.constraints = ('*', '*', '*')
 
     def format(self, arg):
         '''Returns a string representation for the given value.'''
@@ -53,6 +58,10 @@ class InfoNode(object):
           outputs += [' '.join([c_o, c_i, s_w, w_i, h_i, k, sparsity])]
 
         return (edges, outputs)
+
+    def emit_constraints(self):
+        '''Emits the constraints file line for this node.'''
+        return ', '.join([self.node.name] + list(self.constraints))
 
 
 class MaybeActivated(object):
@@ -187,6 +196,16 @@ class InfoEmitter(object):
         s += ''.join(map(convert_edge, self.collected_edges))
         return s
 
+    def emit_constraints(self, name, chains, lookup_nodes):
+
+        constraints = []
+        for chain in chains:
+            for node in chain:
+                if node.node.name in lookup_nodes:
+                    constraints += [node.emit_constraints()]
+
+        return '\n'.join(constraints)
+
 
 class InfoTransformer(object):
 
@@ -262,9 +281,10 @@ class InfoTransformer(object):
             emitter = InfoEmitter()
             actual_nodes = [node.name for node in self.graph.nodes if node.name not in magic_layers]
             toposource_body = emitter.emit(self.graph.name, chains, actual_nodes)
+            self.constraintssource = emitter.emit_constraints(self.graph.name, chains, actual_nodes)
             self.no_nodes = len(actual_nodes)
             self.no_edges = len(emitter.collected_edges)
             toposource_header = str(self.no_nodes) + ' ' +  str(self.no_params) + ' ' + str(self.no_edges) + '\n\n'
             self.toposource = toposource_header + toposource_body
             self.layersource = '\n'.join(actual_nodes)
-        return [self.toposource, self.layersource]
+        return [self.toposource, self.layersource, self.constraintssource]
