@@ -22,7 +22,7 @@ cifar10.solution: cifar10.constraints cifar10.layers cifar10.topology
                                -n cost-models/Intel\(R\)\ Core\(TM\)\ i5-2500K\ CPU\ @\ 3.30GHz/hcy.csv \
                                > cifar10.solution
 
-cifar10.h:
+cifar10.h: cifar10.layers cifar10.topology cifar10.solution
 	triNNity-optimizer instantiate -t cifar10.topology \
                                  -a triNNity-algorithms.csv \
                                  -m triNNity-methods.csv \
@@ -32,4 +32,4 @@ cifar10.h:
                                  > cifar10.h
 
 cifar10.exe: cifar10.layers cifar10.topology cifar10.solution cifar10.cpp cifar10.h
-	$(CC) cifar10.cpp -o cifar10.exe
+	$(CC) -DTRINNITY_USE_CBLAS_GEMM -DTRINNITY_USE_CBLAS_GEMV -DTRINNITY_ENABLE_SPECTRAL_GENERIC_LAYER -DWEIGHT_TYPE=float -DACTIVATION_TYPE=float cifar10.cpp -o cifar10.exe

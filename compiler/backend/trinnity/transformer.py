@@ -98,11 +98,11 @@ class TrinnityNode(object):
             allocs += [self.bias_buffer + '\n']
 
             # Set up output buffer
-            self.output_buffer_name = self.node.name + '.output'
+            self.output_buffer_name = self.node.name + '_output'
             self.output_buffer = 'ACTIVATION_TYPE' + ' * ' + self.output_buffer_name + ' = new ' + 'ACTIVATION_TYPE' + '[' + str(int(args[6])*int(args[1])*int(args[2])) + '];'
             allocs += [self.output_buffer + '\n']
 
-            args = ', '.join(['ACTIVATION_TYPE', 'WEIGHT_TYPE', 'ACTIVATION_TYPE', 'triNNity::generic::CONV_DIRECT_SUM_2D', 'triNNity::GEMM_BLOCKED'] + args + ['triNNity::CHW', 'triNNity::BOUND_IMPLICIT_PAD', act, 'GEMM_BLOCK_I', 'GEMM_BLOCK_J', 'GEMM_BLOCK_K'])
+            args = ', '.join(['ACTIVATION_TYPE', 'WEIGHT_TYPE', 'ACTIVATION_TYPE', 'LAYER_'+self.node.name.upper()+'_METHOD', 'triNNity::GEMM_BLAS'] + args + ['LAYER_'+(self.node.name.upper())+'_IN_FMT', 'triNNity::BOUND_IMPLICIT_PAD', act])
 
         elif (self.op == 'relu'):
             self.op = 'triNNity::layer::ActivationLayer'
@@ -427,8 +427,8 @@ class TrinnityEmitter(object):
     def statement(self, s):
         return self.prefix + s + '\n'
 
-    def emit_imports(self):
-        return self.statement('#include <triNNity/layer.h>') + self.statement('#include <triNNity/generic/layer.h>') + self.statement('#include <triNNity/dense/cpu/layer.h>') + '\n'
+    def emit_imports(self, name):
+        return self.statement('#include "'+name+'.h"') + self.statement('#include <triNNity/layer.h>') + self.statement('#include <triNNity/generic/layer.h>') + self.statement('#include <triNNity/dense/cpu/layer.h>') + '\n'
 
     def emit_parents(self, chain):
         assert len(chain)
@@ -442,7 +442,7 @@ class TrinnityEmitter(object):
         self.collected_code += list(map(lambda x: self.statement(str(x)), code))
 
     def emit(self, name, chains):
-        s = self.emit_imports()
+        s = self.emit_imports(name)
 
         for chain in chains:
             for node in chain:
@@ -493,29 +493,6 @@ class TrinnityTransformer(object):
         # Display the graph
         if self.verbose:
             print_stderr(self.graph)
-
-    def transform_data(self):
-        if self.params is None:
-            transformers = [
-
-                # Reshape the parameters to Trinnity's ordering
-                DataReshaper({
-                    # (c_o, c_i, h, w) -> (h, w, c_i, c_o)
-                    LayerKind.Convolution: (2, 3, 1, 0),
-
-                    # (c_o, c_i) -> (c_i, c_o)
-                    LayerKind.InnerProduct: (1, 0)
-                }),
-
-                # Pre-process batch normalization data
-                BatchNormPreprocessor(),
-
-                # Convert parameters to dictionaries
-                ParameterNamer(),
-            ]
-            self.graph = self.graph.transformed(transformers)
-            self.params = {node.name: node.data for node in self.graph.nodes if node.data}
-        return self.params
 
     def transform_source(self):
         if self.source is None:
