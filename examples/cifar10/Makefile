@@ -31,5 +31,14 @@ cifar10.h: cifar10.layers cifar10.topology cifar10.solution
                                  -l cifar10.layers \
                                  > cifar10.h
 
+lpdnn-cifar10.h: cifar10.layers cifar10.topology cifar10.solution
+	triNNity-optimizer instantiate -t cifar10.topology \
+                                 -a triNNity-algorithms.csv \
+                                 -m triNNity-methods.csv \
+                                 -s cifar10.solution \
+                                 -i LPDNN \
+                                 -l cifar10.layers \
+                                 > lpdnn-cifar10.h
+
 cifar10.exe: cifar10.layers cifar10.topology cifar10.solution cifar10.cpp cifar10.h
 	$(CC) -DTRINNITY_USE_CBLAS_GEMM -DTRINNITY_USE_CBLAS_GEMV -DTRINNITY_ENABLE_SPECTRAL_GENERIC_LAYER -DWEIGHT_TYPE=float -DACTIVATION_TYPE=float cifar10.cpp -o cifar10.exe
