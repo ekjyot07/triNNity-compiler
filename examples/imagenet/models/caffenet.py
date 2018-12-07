@@ -1,4 +1,4 @@
-from kaffe.tensorflow import Network
+from .helper import Network
 
 class CaffeNet(Network):
     def setup(self):

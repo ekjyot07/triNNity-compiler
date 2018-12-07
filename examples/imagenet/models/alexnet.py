@@ -1,4 +1,4 @@
-from kaffe.tensorflow import Network
+from .helper import Network
 
 class AlexNet(Network):
     def setup(self):
