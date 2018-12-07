@@ -7,3 +7,5 @@
 *.solution
 *.py
 *.npy
+*.caffemodel
+*.solverstate
