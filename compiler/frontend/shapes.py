@@ -2,7 +2,11 @@ import math
 from collections import namedtuple
 from ..util.errors import CompilerError
 
+def format_tensorshape(self, format_spec):
+    return format("{0} {1} {2} {3}".format(*self), format_spec)
+
 TensorShape = namedtuple('TensorShape', ['batch_size', 'channels', 'height', 'width'])
+TensorShape.__format__ = format_tensorshape
 
 def get_filter_output_shape(i_h, i_w, params, round_func):
     o_h = (i_h + 2 * params.pad_h - params.kernel_h) / float(params.stride_h) + 1

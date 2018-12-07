@@ -6,11 +6,11 @@ clean:
 # tensorflow stuff
 
 cifar10.py: cifar10.prototxt
-	PYTHONPATH+=:/usr/python/ ../../triNNity-compiler --backend tensorflow --model cifar10.prototxt  --code-output=cifar10.py
+	PYTHONPATH+=:/usr/python/ ../../triNNity-compiler --backend tensorflow --model cifar10.prototxt --code-output=cifar10.py
 	chmod +x cifar10.py
 
 cifar10.npy: cifar10.caffemodel
-	PYTHONPATH+=:/usr/python/ ../../triNNity-compiler --backend tensorflow --model cifar10.prototxt --data-output=cifar10.npy
+	PYTHONPATH+=:/usr/python/ ../../triNNity-compiler --backend tensorflow --model cifar10.prototxt --weights cifar10.caffemodel --data-output=cifar10.npy
 
 # optimizer stuff
 

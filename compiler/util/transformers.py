@@ -124,7 +124,7 @@ class DataReshaper(object):
                     print_stderr('Warning: parmaters not reshaped for node: {}'.format(node))
                 continue
             transpose_order = self.map(node.kind)
-            weights = node.data[0]
+            weights = list(node.data)[0]
             if (node.kind == LayerKind.InnerProduct) and self.has_spatial_parent(node):
                 # The FC layer connected to the spatial layer needs to be
                 # re-wired to match the new spatial ordering.
@@ -143,7 +143,7 @@ class DataReshaper(object):
             for node in graph.nodes:
                 if hasattr(node, 'reshaped_data'):
                     # Set the weights
-                    node.data[0] = node.reshaped_data
+                    list(node.data)[0] = node.reshaped_data
                     del node.reshaped_data
         return graph
 
