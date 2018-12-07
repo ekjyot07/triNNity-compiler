@@ -28,11 +28,40 @@ def validate_arguments(args):
     fatal_error('No output paths specified.')
 
 def convert_tensorflow(def_path, caffemodel_path, data_output_path, code_output_path, phase):
-  preamble = '''#!/usr/bin/env python
+  preamble = '''import argparse
 import numpy as np
 import tensorflow as tf
+import os.path as osp
 
 DEFAULT_PADDING = 'SAME'
+
+class DataSpec(object):
+
+    def __init__(self,
+                 batch_size,
+                 scale_size,
+                 crop_size,
+                 isotropic,
+                 channels=3,
+                 mean=None,
+                 bgr=True):
+        # The recommended batch size for this model
+        self.batch_size = batch_size
+        # The image should be scaled to this size first during preprocessing
+        self.scale_size = scale_size
+        # Whether the model expects the rescaling to be isotropic
+        self.isotropic = isotropic
+        # A square crop of this dimension is expected by this model
+        self.crop_size = crop_size
+        # The number of channels in the input image expected by this model
+        self.channels = channels
+        # The mean to be subtracted from each image. By default, the per-channel ImageNet mean.
+        # The values below are ordered BGR, as many Caffe models are trained in this order.
+        # Some of the earlier models (like AlexNet) used a spatial three-channeled mean.
+        # However, using just the per-channel mean values instead doesn't affect things too much.
+        self.mean = mean if mean is not None else np.array([104., 117., 124.])
+        # Whether this model expects images to be in BGR order
+        self.expects_bgr = True
 
 def layer(op):
 
@@ -231,22 +260,6 @@ class Network(object):
         keep = 1 - self.use_dropout + (self.use_dropout * keep_prob)
         return tf.nn.dropout(input, keep, name=name)
 
-def load_model(name):
-  all_models = models.get_models()
-  lut = {model.__name__: model for model in all_models}
-  if name not in lut:
-      print('Invalid model index. Options are:')
-      for model in all_models:
-          print('\t* {}'.format(model.__name__))
-      return None
-  NetClass = lut[name]
-
-  spec = models.get_data_spec(model_class=NetClass)
-  data_node = tf.placeholder(tf.float32,
-                             shape=(None, spec.crop_size, spec.crop_size, spec.channels))
-
-  return NetClass({'data': data_node})
-
 def validate(net, model_path, image_producer, top_k=5):
     spec = models.get_data_spec(model_instance=net)
     input_node = net.inputs['data']
@@ -271,25 +284,181 @@ def validate(net, model_path, image_producer, top_k=5):
         coordinator.request_stop()
         coordinator.join(threads, stop_grace_period_secs=2)
     print('Top {} Accuracy: {}'.format(top_k, float(correct) / total))
+
+def process_image(img, scale, isotropic, crop, mean):
+    # Rescale
+    if isotropic:
+        img_shape = tf.to_float(tf.shape(img)[:2])
+        min_length = tf.minimum(img_shape[0], img_shape[1])
+        new_shape = tf.to_int32((scale / min_length) * img_shape)
+    else:
+        new_shape = tf.pack([scale, scale])
+    img = tf.image.resize_images(img, new_shape[0], new_shape[1])
+    # Center crop
+    # Use the slice workaround until crop_to_bounding_box supports deferred tensor shapes
+    # See: https://github.com/tensorflow/tensorflow/issues/521
+    offset = (new_shape - crop) / 2
+    img = tf.slice(img, begin=tf.pack([offset[0], offset[1], 0]), size=tf.pack([crop, crop, -1]))
+    # Mean subtraction
+    return tf.to_float(img) - mean
+
+class ImageProducer(object):
+
+    def __init__(self, image_paths, data_spec, num_concurrent=4, batch_size=None, labels=None):
+        # The data specifications describe how to process the image
+        self.data_spec = data_spec
+        # A list of full image paths
+        self.image_paths = image_paths
+        # An optional list of labels corresponding to each image path
+        self.labels = labels
+        # A boolean flag per image indicating whether its a JPEG or PNG
+        self.extension_mask = self.create_extension_mask(self.image_paths)
+        # Create the loading and processing operations
+        self.setup(batch_size=batch_size, num_concurrent=num_concurrent)
+
+    def setup(self, batch_size, num_concurrent):
+        # Validate the batch size
+        num_images = len(self.image_paths)
+        batch_size = min(num_images, batch_size or self.data_spec.batch_size)
+        if num_images % batch_size != 0:
+            raise ValueError(
+                'The total number of images ({}) must be divisible by the batch size ({}).'.format(
+                    num_images, batch_size))
+        self.num_batches = num_images / batch_size
+
+        # Create a queue that will contain image paths (and their indices and extension indicator)
+        self.path_queue = tf.FIFOQueue(capacity=num_images,
+                                       dtypes=[tf.int32, tf.bool, tf.string],
+                                       name='path_queue')
+
+        # Enqueue all image paths, along with their indices
+        indices = tf.range(num_images)
+        self.enqueue_paths_op = self.path_queue.enqueue_many([indices, self.extension_mask,
+                                                              self.image_paths])
+        # Close the path queue (no more additions)
+        self.close_path_queue_op = self.path_queue.close()
+
+        # Create an operation that dequeues a single path and returns a processed image
+        (idx, processed_image) = self.process()
+
+        # Create a queue that will contain the processed images (and their indices)
+        image_shape = (self.data_spec.crop_size, self.data_spec.crop_size, self.data_spec.channels)
+        processed_queue = tf.FIFOQueue(capacity=int(np.ceil(num_images / float(num_concurrent))),
+                                       dtypes=[tf.int32, tf.float32],
+                                       shapes=[(), image_shape],
+                                       name='processed_queue')
+
+        # Enqueue the processed image and path
+        enqueue_processed_op = processed_queue.enqueue([idx, processed_image])
+
+        # Create a dequeue op that fetches a batch of processed images off the queue
+        self.dequeue_op = processed_queue.dequeue_many(batch_size)
+
+        # Create a queue runner to perform the processing operations in parallel
+        num_concurrent = min(num_concurrent, num_images)
+        self.queue_runner = tf.train.QueueRunner(processed_queue,
+                                                 [enqueue_processed_op] * num_concurrent)
+
+    def start(self, session, coordinator, num_concurrent=4):
+        # Queue all paths
+        session.run(self.enqueue_paths_op)
+        # Close the path queue
+        session.run(self.close_path_queue_op)
+        # Start the queue runner and return the created threads
+        return self.queue_runner.create_threads(session, coord=coordinator, start=True)
+
+    def get(self, session):
+        (indices, images) = session.run(self.dequeue_op)
+        if self.labels is not None:
+            labels = [self.labels[idx] for idx in indices]
+            return (labels, images)
+        return (indices, images)
+
+    def batches(self, session):
+        for _ in xrange(self.num_batches):
+            yield self.get(session=session)
+
+    def load_image(self, image_path, is_jpeg):
+        # Read the file
+        file_data = tf.read_file(image_path)
+        # Decode the image data
+        img = tf.cond(
+            is_jpeg,
+            lambda: tf.image.decode_jpeg(file_data, channels=self.data_spec.channels),
+            lambda: tf.image.decode_png(file_data, channels=self.data_spec.channels))
+        if self.data_spec.expects_bgr:
+            # Convert from RGB channel ordering to BGR
+            # This matches, for instance, how OpenCV orders the channels.
+            img = tf.reverse(img, [False, False, True])
+        return img
+
+    def process(self):
+        # Dequeue a single image path
+        idx, is_jpeg, image_path = self.path_queue.dequeue()
+        # Load the image
+        img = self.load_image(image_path, is_jpeg)
+        # Process the image
+        processed_img = process_image(img=img,
+                                      scale=self.data_spec.scale_size,
+                                      isotropic=self.data_spec.isotropic,
+                                      crop=self.data_spec.crop_size,
+                                      mean=self.data_spec.mean)
+        # Return the processed image, along with its index
+        return (idx, processed_img)
+
+    @staticmethod
+    def create_extension_mask(paths):
+
+        def is_jpeg(path):
+            extension = osp.splitext(path)[-1].lower()
+            if extension in ('.jpg', '.jpeg'):
+                return True
+            if extension != '.png':
+                raise ValueError('Unsupported image format: {}'.format(extension))
+            return False
+
+        return [is_jpeg(p) for p in paths]
+
+    def __len__(self):
+        return len(self.image_paths)
+
+class ImageNetProducer(ImageProducer):
+
+    def __init__(self, val_path, data_path, data_spec):
+        # Read in the ground truth labels for the validation set
+        # The get_ilsvrc_aux.sh in Caffe's data/ilsvrc12 folder can fetch a copy of val.txt
+        gt_lines = open(val_path).readlines()
+        gt_pairs = [line.split() for line in gt_lines]
+        # Get the full image paths
+        # You will need a copy of the ImageNet validation set for this.
+        image_paths = [osp.join(data_path, p[0]) for p in gt_pairs]
+        # The corresponding ground truth labels
+        labels = np.array([int(p[1]) for p in gt_pairs])
+        # Initialize base
+        super(ImageNetProducer, self).__init__(image_paths=image_paths,
+                                               data_spec=data_spec,
+                                               labels=labels)
 '''
 
-  postamble = '''def main():
+  main_code_preamble = '''def main():
     # Parse arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument('model_path', help='Path to the converted model parameters (.npy)')
-    parser.add_argument('ground_truth', help='Path to validation set ground truth (.txt)')
-    parser.add_argument('data_dir', help='Validation set images directory path')
-    parser.add_argument('--model', default='GoogleNet', help='The name of the model to evaluate')
+    parser.add_argument('--weights', help='Path to the converted model parameters (.npy)')
+    parser.add_argument('--ground-truth', help='Path to validation set ground truth (.txt)')
+    parser.add_argument('--images', help='Validation set images directory path')
+    parser.add_argument('--model', help='The model to evaluate')
     args = parser.parse_args()
 
-    net = load_model(args.model)
-    if net is None:
-        exit(-1)
+    data_spec = DataSpec(batch_size=1, scale_size=256, crop_size=224, isotropic=True)
 
-    data_spec = models.get_data_spec(model_instance=net)
-    image_producer = dataset.ImageNetProducer(val_path=args.ground_truth,
-                                              data_path=args.data_dir,
-                                              data_spec=data_spec)
+    data_node = tf.placeholder(tf.float32,
+                               shape=(None, data_spec.crop_size, data_spec.crop_size, data_spec.channels))
+
+'''
+
+  main_code_postamble = '''    image_producer = ImageNetProducer(val_path=args.ground_truth,
+                                      data_path=args.images,
+                                      data_spec=data_spec)
 
     validate(net, args.model_path, image_producer, 5)
     validate(net, args.model_path, image_producer, 1)
@@ -312,10 +481,13 @@ if __name__ == '__main__':
     if code_output_path:
       print_stderr('Generating code for model...')
       with open(code_output_path, 'w') as src_out:
+        src_out.write('#!/usr/bin/env python\n')
         src_out.write(preamble)
         src_out.write(transformer.transform_source()[0])
         src_out.write('\n\n\n')
-        src_out.write(postamble)
+        src_out.write(main_code_preamble)
+        src_out.write("    net = CIFAR10({'data': data_node})\n")
+        src_out.write(main_code_postamble)
     print_stderr('Done.')
   except CompilerError as err:
     fatal_error('Error encountered: {}'.format(err))

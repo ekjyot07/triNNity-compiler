@@ -232,15 +232,10 @@ class TensorFlowTransformer(object):
             BatchNormScaleBiasFuser(),
 
             # Fuse ReLUs
-            # TODO: Move non-linearity application to layer wrapper, allowing
-            # any arbitrary operation to be optionally activated.
             ReLUFuser(allowed_parent_types=[LayerKind.Convolution, LayerKind.InnerProduct,
                                             LayerKind.BatchNorm]),
 
             # Rename nodes
-            # Slashes are used for scoping in TensorFlow. Replace slashes
-            # in node names with underscores.
-            # (Caffe's GoogLeNet implementation uses slashes)
             NodeRenamer(lambda node: node.name.replace('/', '_'))
         ]
         self.graph = graph.transformed(transformers)
