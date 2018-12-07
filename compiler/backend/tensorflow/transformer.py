@@ -270,6 +270,8 @@ class TensorFlowTransformer(object):
             ]
             self.graph = self.graph.transformed(transformers)
             self.params = {node.name: node.data for node in self.graph.nodes if node.data}
+        else:
+            raise CompilerError('expected None for params, got: {}'.format(self.params))
         return self.params
 
     def transform_source(self):

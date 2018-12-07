@@ -38,7 +38,7 @@ class DataInjector(object):
         caffe = get_caffe_resolver().caffe
         net = caffe.Net(self.def_path, self.data_path, caffe.TEST)
         data = lambda blob: blob.data
-        self.params = [(k, map(data, v)) for k, v in net.params.items()]
+        self.params = [(k, list(map(data, v))) for k, v in net.params.items()]
 
     def load_using_pb(self):
         data = get_caffe_resolver().NetParameter()
@@ -121,9 +121,11 @@ class DataReshaper(object):
             if node.kind not in self.reshaped_node_types:
                 # Check for 2+ dimensional data
                 if any(len(tensor.shape) > 1 for tensor in node.data):
-                    print_stderr('Warning: parmaters not reshaped for node: {}'.format(node))
+                    print_stderr('Warning: parameters not reshaped for node: {}'.format(node))
                 continue
             transpose_order = self.map(node.kind)
+            if len(list(node.data)) == 0:
+                raise CompilerError('Missing weights for node: {}'.format(node))
             weights = list(node.data)[0]
             if (node.kind == LayerKind.InnerProduct) and self.has_spatial_parent(node):
                 # The FC layer connected to the spatial layer needs to be
@@ -283,8 +285,10 @@ class ParameterNamer(object):
                 if len(node.data) == 4:
                     names += ('scale', 'offset')
             else:
-                print_stderr('WARNING: Unhandled parameters: {}'.format(node.kind))
+                print_stderr('Warning: Unhandled parameters: {}'.format(node.kind))
                 continue
-            assert len(names) == len(node.data)
-            node.data = dict(zip(names, node.data))
+            if len(names) > len(list(node.data)):
+                raise CompilerError('parameter mismatch in node: {}, expected {} parameters, got {}'.format(node, len(names), len(list(node.data))))
+            # Ignore extra data blobs
+            node.data = dict(zip(names, list(node.data)[:len(names)]))
         return graph

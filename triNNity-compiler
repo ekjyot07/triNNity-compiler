@@ -304,8 +304,8 @@ if __name__ == '__main__':
     print_stderr('Compiling for backend: tensorflow')
 
     if caffemodel_path is not None:
-      data = transformer.transform_data()
       print_stderr('Converting weights...')
+      data = transformer.transform_data()
       with open(data_output_path, 'wb') as data_out:
         np.save(data_out, data)
 
