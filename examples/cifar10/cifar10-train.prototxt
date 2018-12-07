@@ -12,11 +12,12 @@ layer {
   }
   image_data_param {
     source: "../caffe-training-data/train-index.txt"
-    batch_size: 100
+    batch_size: 64
     new_height: 32
     new_width: 32
   }
 }
+
 layer {
   name: "cifar"
   type: "ImageData"
@@ -30,11 +31,12 @@ layer {
   }
   image_data_param {
     source: "../caffe-training-data/test-index.txt"
-    batch_size: 100
+    batch_size: 64
     new_height: 32
     new_width: 32
   }
 }
+
 layer {
   name: "conv1"
   type: "Convolution"
@@ -52,14 +54,14 @@ layer {
     kernel_size: 5
     stride: 1
     weight_filler {
-      type: "gaussian"
-      std: 0.0001
+      type: "positive_unitball"
     }
     bias_filler {
       type: "constant"
     }
   }
 }
+
 layer {
   name: "pool1"
   type: "Pooling"
@@ -71,12 +73,14 @@ layer {
     stride: 2
   }
 }
+
 layer {
   name: "relu1"
   type: "ReLU"
   bottom: "pool1"
   top: "pool1"
 }
+
 layer {
   name: "conv2"
   type: "Convolution"
@@ -102,12 +106,14 @@ layer {
     }
   }
 }
+
 layer {
   name: "relu2"
   type: "ReLU"
   bottom: "conv2"
   top: "conv2"
 }
+
 layer {
   name: "pool2"
   type: "Pooling"
@@ -119,6 +125,7 @@ layer {
     stride: 2
   }
 }
+
 layer {
   name: "conv3"
   type: "Convolution"
@@ -144,12 +151,14 @@ layer {
     }
   }
 }
+
 layer {
   name: "relu3"
   type: "ReLU"
   bottom: "conv3"
   top: "conv3"
 }
+
 layer {
   name: "pool3"
   type: "Pooling"
@@ -161,6 +170,7 @@ layer {
     stride: 2
   }
 }
+
 layer {
   name: "ip1"
   type: "InnerProduct"
@@ -183,6 +193,7 @@ layer {
     }
   }
 }
+
 layer {
   name: "ip2"
   type: "InnerProduct"
@@ -205,6 +216,7 @@ layer {
     }
   }
 }
+
 layer {
   name: "loss"
   type: "SoftmaxWithLoss"
@@ -213,6 +225,7 @@ layer {
   top: "loss"
   loss_weight: 1
 }
+
 layer {
   name: "top-1"
   type: "Accuracy"
@@ -223,6 +236,7 @@ layer {
     phase: TEST
   }
 }
+
 layer {
   name: "top-5"
   type: "Accuracy"
