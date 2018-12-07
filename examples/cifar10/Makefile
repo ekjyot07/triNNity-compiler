@@ -15,6 +15,13 @@ cifar10.topology: cifar10.prototxt
 cifar10.cpp: cifar10.constraints cifar10.layers cifar10.topology
 	PYTHONPATH+=:/usr/python/ ../../triNNity-compiler --backend trinnity --model cifar10.prototxt --code-output=cifar10.cpp
 
+cifar10.py: cifar10.caffemodel
+	PYTHONPATH+=:/usr/python/ ../../triNNity-compiler --backend tensorflow --model cifar10.prototxt --weights cifar10.caffemodel --code-output=cifar10.py
+	chmod +x cifar10.py
+
+cifar10.npy:
+	PYTHONPATH+=:/usr/python/ ../../triNNity-compiler --backend tensorflow --model cifar10.prototxt --data-output=cifar10.npy
+
 cifar10.solution: cifar10.constraints cifar10.layers cifar10.topology
 	triNNity-optimizer heuristic -x LOCAL_OPTIMAL  \
                                -t cifar10.topology  \

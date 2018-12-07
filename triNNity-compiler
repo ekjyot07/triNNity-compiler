@@ -28,7 +28,7 @@ def validate_arguments(args):
     fatal_error('No output paths specified.')
 
 def convert_tensorflow(def_path, caffemodel_path, data_output_path, code_output_path, phase):
-  preamble = '''
+  preamble = '''#!/usr/bin/env python
 import numpy as np
 import tensorflow as tf
 
@@ -231,7 +231,73 @@ class Network(object):
         keep = 1 - self.use_dropout + (self.use_dropout * keep_prob)
         return tf.nn.dropout(input, keep, name=name)
 
-  '''
+def load_model(name):
+  all_models = models.get_models()
+  lut = {model.__name__: model for model in all_models}
+  if name not in lut:
+      print('Invalid model index. Options are:')
+      for model in all_models:
+          print('\t* {}'.format(model.__name__))
+      return None
+  NetClass = lut[name]
+
+  spec = models.get_data_spec(model_class=NetClass)
+  data_node = tf.placeholder(tf.float32,
+                             shape=(None, spec.crop_size, spec.crop_size, spec.channels))
+
+  return NetClass({'data': data_node})
+
+def validate(net, model_path, image_producer, top_k=5):
+    spec = models.get_data_spec(model_instance=net)
+    input_node = net.inputs['data']
+    label_node = tf.placeholder(tf.int32)
+    probs = net.get_output()
+    top_k_op = tf.nn.in_top_k(probs, label_node, top_k)
+    count = 0
+    correct = 0
+    total = len(image_producer)
+
+    with tf.Session() as sesh:
+        coordinator = tf.train.Coordinator()
+        net.load(data_path=model_path, session=sesh)
+        threads = image_producer.start(session=sesh, coordinator=coordinator)
+        for (labels, images) in image_producer.batches(sesh):
+            correct += np.sum(sesh.run(top_k_op,
+                                       feed_dict={input_node: images,
+                                                  label_node: labels}))
+            count += len(labels)
+            cur_accuracy = float(correct) * 100 / count
+            print('{:>6}/{:<6} {:>6.2f}%'.format(count, total, cur_accuracy))
+        coordinator.request_stop()
+        coordinator.join(threads, stop_grace_period_secs=2)
+    print('Top {} Accuracy: {}'.format(top_k, float(correct) / total))
+'''
+
+  postamble = '''def main():
+    # Parse arguments
+    parser = argparse.ArgumentParser()
+    parser.add_argument('model_path', help='Path to the converted model parameters (.npy)')
+    parser.add_argument('ground_truth', help='Path to validation set ground truth (.txt)')
+    parser.add_argument('data_dir', help='Validation set images directory path')
+    parser.add_argument('--model', default='GoogleNet', help='The name of the model to evaluate')
+    args = parser.parse_args()
+
+    net = load_model(args.model)
+    if net is None:
+        exit(-1)
+
+    data_spec = models.get_data_spec(model_instance=net)
+    image_producer = dataset.ImageNetProducer(val_path=args.ground_truth,
+                                              data_path=args.data_dir,
+                                              data_spec=data_spec)
+
+    validate(net, args.model_path, image_producer, 5)
+    validate(net, args.model_path, image_producer, 1)
+
+if __name__ == '__main__':
+    main()
+'''
+
   try:
     from compiler.backend.tensorflow import TensorFlowTransformer
     transformer = TensorFlowTransformer(def_path, caffemodel_path, phase=phase)
@@ -248,14 +314,18 @@ class Network(object):
       with open(code_output_path, 'w') as src_out:
         src_out.write(preamble)
         src_out.write(transformer.transform_source()[0])
+        src_out.write('\n\n\n')
+        src_out.write(postamble)
     print_stderr('Done.')
   except CompilerError as err:
     fatal_error('Error encountered: {}'.format(err))
 
 def convert_trinnity(def_path, caffemodel_path, data_output_path, code_output_path, phase):
-  preamble = '''
+  preamble = '''#include <triNNity/layer.h>
+#include <triNNity/generic/layer.h>
+#include <triNNity/dense/cpu/layer.h>
 
-  '''
+'''
   try:
     from compiler.backend.trinnity import TrinnityTransformer
     transformer = TrinnityTransformer(def_path, caffemodel_path, phase=phase)

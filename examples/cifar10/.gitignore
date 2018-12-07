@@ -5,3 +5,5 @@
 *.topology
 *.h
 *.solution
+*.py
+*.npy

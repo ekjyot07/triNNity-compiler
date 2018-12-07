@@ -301,7 +301,8 @@ class TrinnityMapper(IRNodeMapper):
         return kernel_params
 
     def map_convolution(self, node):
-        (kernel_params, kwargs) = self.get_kernel_params(node)
+        kernel_params = self.get_kernel_params(node)
+        kwargs = {}
         k_h = kernel_params.kernel_h
         k_w = kernel_params.kernel_w
         s_h = kernel_params.stride_h
@@ -393,7 +394,7 @@ class TrinnityEmitter(object):
         return self.prefix + s + '\n'
 
     def emit_imports(self, name):
-        return self.statement('#include "'+name+'.h"') + self.statement('#include <triNNity/layer.h>') + self.statement('#include <triNNity/generic/layer.h>') + self.statement('#include <triNNity/dense/cpu/layer.h>') + '\n'
+        return self.statement('#include "'+name+'.h"')
 
     def emit_parents(self, chain):
         assert len(chain)
