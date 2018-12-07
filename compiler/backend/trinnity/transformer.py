@@ -5,25 +5,6 @@ from ...frontend.graph import IRGraphBuilder, IRNodeMapper
 from ...frontend.layers import LayerKind
 from ...util.transformers import (DataInjector, DataReshaper, NodeRenamer, ReLUFuser, BatchNormScaleBiasFuser, BatchNormPreprocessor, ParameterNamer)
 
-def get_padding_type(kernel_params, input_shape, output_shape):
-    '''Translates Caffe's numeric padding to one of ('SAME', 'VALID').
-    Caffe supports arbitrary padding values, while Trinnity only
-    supports 'SAME' and 'VALID' modes. So, not all Caffe paddings
-    can be translated to Trinnity. There are some subtleties to
-    how the padding edge-cases are handled. These are described here:
-    https://github.com/Yangqing/caffe2/blob/master/caffe2/proto/caffe2_legacy.proto
-    '''
-    k_h, k_w, s_h, s_w, p_h, p_w = kernel_params
-    s_o_h = np.ceil(input_shape.height / float(s_h))
-    s_o_w = np.ceil(input_shape.width / float(s_w))
-    if (output_shape.height == s_o_h) and (output_shape.width == s_o_w):
-        return 'SAME'
-    v_o_h = np.ceil((input_shape.height - k_h + 1.0) / float(s_h))
-    v_o_w = np.ceil((input_shape.width - k_w + 1.0) / float(s_w))
-    if (output_shape.height == v_o_h) and (output_shape.width == v_o_w):
-        return 'VALID'
-    return None
-
 class TrinnityNode(object):
     '''An intermediate representation for Trinnity operations.'''
 
@@ -317,11 +298,7 @@ class TrinnityMapper(IRNodeMapper):
 
     def get_kernel_params(self, node):
         kernel_params = node.layer.kernel_parameters
-        input_shape = node.get_only_parent().output_shape
-        padding = get_padding_type(kernel_params, input_shape, node.output_shape)
-        # Only emit the padding if it's not the default value.
-        padding = {'padding': padding} if padding != 'SAME' else {}
-        return (kernel_params, padding)
+        return kernel_params
 
     def map_convolution(self, node):
         (kernel_params, kwargs) = self.get_kernel_params(node)
@@ -353,36 +330,24 @@ class TrinnityMapper(IRNodeMapper):
         elif pool_type == 1:
             pool_op = 'avg_pool'
         else:
-            # Stochastic pooling, for instance.
             raise CompilerError('Unsupported pooling type.')
-        (kernel_params, padding) = self.get_kernel_params(node)
+        kernel_params = self.get_kernel_params(node)
         return TrinnityNode(pool_op, kernel_params.kernel_h, kernel_params.kernel_w,
-                              kernel_params.stride_h, kernel_params.stride_w, **padding)
+                            kernel_params.stride_h, kernel_params.stride_w,
+                            kernel_params.pad_h, kernel_params.pad_w)
 
     def map_inner_product(self, node):
-        #TODO: Axis
         assert node.parameters.axis == 1
-        #TODO: Unbiased
         assert node.parameters.bias_term == True
         return MaybeActivated(node)('fc', node.parameters.num_output)
 
     def map_softmax(self, node):
         return TrinnityNode('softmax')
 
-    def map_softmax_with_loss(self, node):
-        return TrinnityNode('softmax_loss')
-
-    def map_accuracy(self, node):
-        return TrinnityNode('accuracy')
-
     def map_lrn(self, node):
         params = node.parameters
-        # The window size must be an odd value. For a window
-        # size of (2*n+1), Trinnity defines depth_radius = n.
         assert params.local_size % 2 == 1
-        # Caffe scales by (alpha/(2*n+1)), whereas Trinnity
-        # just scales by alpha (as does Krizhevsky's paper).
-        # We'll account for that here.
+        # Caffe scales by (alpha/(2*n+1))
         alpha = params.alpha / float(params.local_size)
         return TrinnityNode('lrn', int(params.local_size / 2), alpha, params.beta)
 

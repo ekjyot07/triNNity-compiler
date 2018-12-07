@@ -253,6 +253,9 @@ class Network(object):
     fatal_error('Error encountered: {}'.format(err))
 
 def convert_trinnity(def_path, caffemodel_path, data_output_path, code_output_path, phase):
+  preamble = '''
+
+  '''
   try:
     from compiler.backend.trinnity import TrinnityTransformer
     transformer = TrinnityTransformer(def_path, caffemodel_path, phase=phase)
@@ -267,6 +270,7 @@ def convert_trinnity(def_path, caffemodel_path, data_output_path, code_output_pa
     if code_output_path:
       print_stderr('Generating code for model...')
       with open(code_output_path, 'w') as src_out:
+        src_out.write(preamble)
         src_out.write(transformer.transform_source()[0])
     print_stderr('Done.')
   except CompilerError as err:

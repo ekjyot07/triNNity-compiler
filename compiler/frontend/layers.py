@@ -8,7 +8,6 @@ LAYER_DESCRIPTORS = {
 
     # Caffe Types
     'AbsVal': shape_identity,
-    'Accuracy': shape_scalar,
     'ArgMax': shape_not_implemented,
     'BatchNorm': shape_identity,
     'BNLL': shape_not_implemented,
@@ -43,7 +42,6 @@ LAYER_DESCRIPTORS = {
     'SigmoidCrossEntropyLoss': shape_scalar,
     'Silence': shape_not_implemented,
     'Softmax': shape_identity,
-    'SoftmaxWithLoss': shape_scalar,
     'Split': shape_not_implemented,
     'Slice': shape_not_implemented,
     'TanH': shape_identity,

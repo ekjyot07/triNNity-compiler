@@ -123,12 +123,6 @@ class TensorFlowMapper(IRNodeMapper):
     def map_softmax(self, node):
         return TensorFlowNode('softmax')
 
-    def map_softmax_with_loss(self, node):
-        return TensorFlowNode('softmax_loss')
-
-    def map_accuracy(self, node):
-        return TensorFlowNode('accuracy')
-
     def map_lrn(self, node):
         params = node.parameters
         # The window size must be an odd value. For a window

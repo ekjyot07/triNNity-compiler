@@ -117,12 +117,6 @@ class InfoMapper(IRNodeMapper):
     def map_softmax(self, node):
         return InfoNode('softmax', 0, 0, 0, 0, 0, 0, 0, 0, 0)
 
-    def map_softmax_with_loss(self, node):
-        return InfoNode('softmax_loss', 0, 0, 0, 0, 0, 0, 0, 0, 0)
-
-    def map_accuracy(self, node):
-        return InfoNode('accuracy', 0, 0, 0, 0, 0, 0, 0, 0, 0)
-
     def map_lrn(self, node):
         return InfoNode('lrn', 0, 0, 0, 0, 0, 0, 0, 0, 0)
 
