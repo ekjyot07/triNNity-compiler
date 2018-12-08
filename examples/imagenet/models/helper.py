@@ -1,6 +1,7 @@
 import sys
 import os.path as osp
 import numpy as np
+import tensorflow as tf
 
 DEFAULT_PADDING = 'SAME'
 
@@ -53,7 +54,7 @@ class Network(object):
         assert len(args) != 0
         self.terminals = []
         for fed_layer in args:
-            if isinstance(fed_layer, basestring):
+            if isinstance(fed_layer, str):
                 try:
                     fed_layer = self.layers[fed_layer]
                 except KeyError:
@@ -93,12 +94,12 @@ class Network(object):
         assert c_o % group == 0
         convolve = lambda i, k: tf.nn.conv2d(i, k, [1, s_h, s_w, 1], padding=padding)
         with tf.variable_scope(name) as scope:
-            kernel = self.make_var('weights', shape=[k_h, k_w, c_i / group, c_o])
+            kernel = self.make_var('weights', shape=[k_h, k_w, int(int(c_i) / group), c_o])
             if group == 1:
                 output = convolve(input, kernel)
             else:
-                input_groups = tf.split(3, group, input)
-                kernel_groups = tf.split(3, group, kernel)
+                input_groups = tf.split(input, 3, group)
+                kernel_groups = tf.split(kernel, 3, group)
                 output_groups = [convolve(i, k) for i, k in zip(input_groups, kernel_groups)]
                 output = tf.concat(3, output_groups)
             if biased:
@@ -167,7 +168,7 @@ class Network(object):
     @layer
     def softmax(self, input, name):
         input_shape = map(lambda v: v.value, input.get_shape())
-        if len(input_shape) > 2:
+        if len(list(input_shape)) > 2:
             if input_shape[1] == 1 and input_shape[2] == 1:
                 input = tf.squeeze(input, squeeze_dims=[1, 2])
             else:

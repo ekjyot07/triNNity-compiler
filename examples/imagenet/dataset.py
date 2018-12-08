@@ -1,5 +1,6 @@
 '''Utility functions and classes for handling image datasets.'''
 
+import os
 import os.path as osp
 import numpy as np
 import tensorflow as tf
@@ -35,22 +36,24 @@ class ImageProducer(object):
     Loads and processes batches of images in parallel.
     '''
 
-    def __init__(self, image_paths, data_spec, num_concurrent=4, batch_size=None, labels=None):
+    def __init__(self, image_paths, data_spec, num_concurrent=4, batch_size=1, labels=None):
         # The data specifications describe how to process the image
         self.data_spec = data_spec
         # A list of full image paths
         self.image_paths = image_paths
+        # Batch size
+        self.batch_size = batch_size
         # An optional list of labels corresponding to each image path
         self.labels = labels
         # A boolean flag per image indicating whether its a JPEG or PNG
         self.extension_mask = self.create_extension_mask(self.image_paths)
         # Create the loading and processing operations
-        self.setup(batch_size=batch_size, num_concurrent=num_concurrent)
+        self.setup(num_concurrent=num_concurrent)
 
-    def setup(self, batch_size, num_concurrent):
+    def setup(self, num_concurrent):
         # Validate the batch size
         num_images = len(self.image_paths)
-        batch_size = min(num_images, batch_size or self.data_spec.batch_size)
+        batch_size = max(1, min(num_images, self.batch_size))
         if num_images % batch_size != 0:
             raise ValueError(
                 'The total number of images ({}) must be divisible by the batch size ({}).'.format(
@@ -151,7 +154,7 @@ class ImageProducer(object):
             if extension in ('.jpg', '.jpeg'):
                 return True
             if extension != '.png':
-                raise ValueError('Unsupported image format: {}'.format(extension))
+                raise ValueError('Unsupported image format: {}'.format(path))
             return False
 
         return [is_jpeg(p) for p in paths]
@@ -162,16 +165,16 @@ class ImageProducer(object):
 
 class ImageNetProducer(ImageProducer):
 
-    def __init__(self, val_path, data_path, data_spec):
+    def __init__(self, classes_path, val_path, data_path, data_spec):
         # Read in the ground truth labels for the validation set
-        # The get_ilsvrc_aux.sh in Caffe's data/ilsvrc12 folder can fetch a copy of val.txt
         gt_lines = open(val_path).readlines()
-        gt_pairs = [line.split() for line in gt_lines]
+        gt_labels = [int(line.split()[0]) for line in gt_lines]
         # Get the full image paths
         # You will need a copy of the ImageNet validation set for this.
-        image_paths = [osp.join(data_path, p[0]) for p in gt_pairs]
+        image_paths = [f for f in os.listdir(data_path) if osp.isfile(f)]
+        classes = open(classes_path).readlines()
         # The corresponding ground truth labels
-        labels = np.array([int(p[1]) for p in gt_pairs])
+        labels = np.array([classes[p-1] for p in gt_labels])
         # Initialize base
         super(ImageNetProducer, self).__init__(image_paths=image_paths,
                                                data_spec=data_spec,

@@ -77,10 +77,11 @@ def validate(net, model_path, image_producer, top_k=5):
 def main():
     # Parse arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument('model_path', help='Path to the converted model parameters (.npy)')
-    parser.add_argument('val_gt', help='Path to validation set ground truth (.txt)')
-    parser.add_argument('data_dir', help='Validation set images directory path')
-    parser.add_argument('--model', default='GoogleNet', help='The name of the model to evaluate')
+    parser.add_argument('--weights', help='Path to the converted model parameters (.npy)')
+    parser.add_argument('--ground-truth', help='Path to validation set ground truth (.txt)')
+    parser.add_argument('--validation-set', help='Validation set images directory path')
+    parser.add_argument('--model', default='AlexNet', help='The name of the model to evaluate')
+    parser.add_argument('--classes', help='The definition of the classification categories (.txt)')
     args = parser.parse_args()
 
     # Load the network
@@ -90,12 +91,13 @@ def main():
 
     # Load the dataset
     data_spec = models.get_data_spec(model_instance=net)
-    image_producer = dataset.ImageNetProducer(val_path=args.val_gt,
-                                              data_path=args.imagenet_data_dir,
+    image_producer = dataset.ImageNetProducer(classes_path=args.classes,
+                                              val_path=args.ground_truth,
+                                              data_path=args.validation_set,
                                               data_spec=data_spec)
 
     # Evaluate its performance on the ILSVRC12 validation set
-    validate(net, args.model_path, image_producer)
+    validate(net, args.weights, image_producer)
 
 
 if __name__ == '__main__':
