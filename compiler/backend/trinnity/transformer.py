@@ -148,7 +148,7 @@ class TrinnityNode(object):
             self.weights_buffer = 'WEIGHT_TYPE' + ' * ' + self.weights_buffer_name + ' = new ' + 'WEIGHT_TYPE' + '[' + str(int(args[0])*int(args[0])*int(args[0])) + '];'
             allocs += [self.weights_buffer + '\n']
 
-            args = ', '.join(['ACTIVATION_TYPE', 'WEIGHT_TYPE', 'ACTIVATION_TYPE'] + args)
+            args = ', '.join(['ACTIVATION_TYPE', 'WEIGHT_TYPE', 'triNNity::GEMM_BLAS'] + args)
 
         elif (self.op == 'softmax'):
             self.op = 'triNNity::layer::SoftmaxLayer'
@@ -340,7 +340,10 @@ class TrinnityMapper(IRNodeMapper):
     def map_inner_product(self, node):
         assert node.parameters.axis == 1
         assert node.parameters.bias_term == True
-        return MaybeActivated(node)('fc', node.parameters.num_output)
+        c_i = node.parents[0].output_shape[1]
+        h_i = node.parents[0].output_shape[2]
+        w_i = node.parents[0].output_shape[3]
+        return MaybeActivated(node)('fc', c_i, w_i, h_i, node.parameters.num_output)
 
     def map_softmax(self, node):
         return TrinnityNode('softmax')
@@ -383,6 +386,7 @@ class TrinnityEmitter(object):
         self.prefix = ''
         self.collected_allocations = []
         self.collected_code = []
+        self.collected_layers = []
 
     def indent(self):
         self.prefix += self.tab
@@ -406,6 +410,7 @@ class TrinnityEmitter(object):
         (allocs, code) = node.emit()
         self.collected_allocations += allocs
         self.collected_code += list(map(lambda x: self.statement(str(x)), code))
+        self.collected_layers += [self.statement(node.node.name + ".execute();")]
 
     def emit(self, name, chains):
         s = self.emit_imports(name)
@@ -417,6 +422,8 @@ class TrinnityEmitter(object):
         s += ''.join(self.collected_allocations)
         s += '\n\n'
         s += ''.join(self.collected_code)
+        s += '\n\n'
+        s += ''.join(self.collected_layers)
         return s
 
 
