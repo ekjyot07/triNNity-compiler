@@ -31,7 +31,7 @@ class TrinnityNode(object):
         self.output_buffer = None
         self.output_buffer_name = None
         # Caffe has some layers that we need to process but basically ignore
-        self.magic_layers = ['data', 'label', 'accuracy', 'softmax_loss']
+        self.magic_layers = ['data', 'label']
 
     def format(self, arg):
         '''Returns a string representation for the given value.'''
@@ -113,7 +113,7 @@ class TrinnityNode(object):
                 self.input_buffer = 'ACTIVATION_TYPE' + ' * ' + self.input_buffer_name + ' = new ' + 'ACTIVATION_TYPE' + '[' + str(int(args[0])*int(args[1])*int(args[2])) + '];'
                 allocs += [self.input_buffer + '\n']
 
-            args = ', '.join(['ACTIVATION_TYPE', 'WEIGHT_TYPE', 'ACTIVATION_TYPE'] + args)
+            args = ', '.join(['ACTIVATION_TYPE', 'triNNity::WINDOW_MAXPOOL'] + args)
 
         elif (self.op == 'avg_pool'):
             self.op = 'triNNity::layer::PoolingLayer'
@@ -128,7 +128,7 @@ class TrinnityNode(object):
                 self.input_buffer = 'ACTIVATION_TYPE' + ' * ' + self.input_buffer_name + ' = new ' + 'ACTIVATION_TYPE' + '[' + str(int(args[0])*int(args[1])*int(args[2])) + '];'
                 allocs += [self.input_buffer + '\n']
 
-            args = ', '.join(['ACTIVATION_TYPE', 'WEIGHT_TYPE', 'ACTIVATION_TYPE'] + args)
+            args = ', '.join(['ACTIVATION_TYPE', 'triNNity::WINDOW_AVGPOOL'] + args)
 
         elif (self.op == 'fc'):
             self.op = 'triNNity::layer::FCLayer'
@@ -148,7 +148,7 @@ class TrinnityNode(object):
             self.weights_buffer = 'WEIGHT_TYPE' + ' * ' + self.weights_buffer_name + ' = new ' + 'WEIGHT_TYPE' + '[' + str(int(args[0])*int(args[0])*int(args[0])) + '];'
             allocs += [self.weights_buffer + '\n']
 
-            args = ', '.join(['ACTIVATION_TYPE', 'WEIGHT_TYPE', 'triNNity::GEMM_BLAS'] + args)
+            args = ', '.join(['ACTIVATION_TYPE', 'WEIGHT_TYPE', 'triNNity::GEMV_BLAS'] + args)
 
         elif (self.op == 'softmax'):
             self.op = 'triNNity::layer::SoftmaxLayer'
@@ -163,7 +163,7 @@ class TrinnityNode(object):
                 self.input_buffer = 'ACTIVATION_TYPE' + ' * ' + self.input_buffer_name + ' = new ' + 'ACTIVATION_TYPE' + '[' + str(int(args[0])*int(args[1])*int(args[2])) + '];'
                 allocs += [self.input_buffer + '\n']
 
-            args = ', '.join(['ACTIVATION_TYPE', 'WEIGHT_TYPE', 'ACTIVATION_TYPE'] + args)
+            args = ', '.join(['ACTIVATION_TYPE'] + args)
 
         elif (self.op == 'lrn'):
             self.op = 'triNNity::layer::ChannelwiseLRNLayer'
@@ -178,7 +178,7 @@ class TrinnityNode(object):
                 self.input_buffer = 'ACTIVATION_TYPE' + ' * ' + self.input_buffer_name + ' = new ' + 'ACTIVATION_TYPE' + '[' + str(int(args[0])*int(args[1])*int(args[2])) + '];'
                 allocs += [self.input_buffer + '\n']
 
-            args = ', '.join(['ACTIVATION_TYPE', 'WEIGHT_TYPE', 'ACTIVATION_TYPE'] + args)
+            args = ', '.join(['ACTIVATION_TYPE'] + args)
 
         elif (self.op == 'concat'):
             self.op = 'triNNity::layer::ChannelwiseConcatLayer'
@@ -326,6 +326,18 @@ class TrinnityMapper(IRNodeMapper):
 
     def map_pooling(self, node):
         pool_type = node.parameters.pool
+        kernel_params = self.get_kernel_params(node)
+        k_h = kernel_params.kernel_h
+        k_w = kernel_params.kernel_w
+        s_h = kernel_params.stride_h
+        s_w = kernel_params.stride_w
+        c_o = node.output_shape[1]
+        c_i = node.parents[0].output_shape[1]
+        h_i = node.parents[0].output_shape[2]
+        w_i = node.parents[0].output_shape[3]
+        h_o = int(h_i / s_h)
+        w_o = int(w_i / s_w)
+
         if pool_type == 0:
             pool_op = 'max_pool'
         elif pool_type == 1:
@@ -333,9 +345,7 @@ class TrinnityMapper(IRNodeMapper):
         else:
             raise CompilerError('Unsupported pooling type.')
         kernel_params = self.get_kernel_params(node)
-        return TrinnityNode(pool_op, kernel_params.kernel_h, kernel_params.kernel_w,
-                            kernel_params.stride_h, kernel_params.stride_w,
-                            kernel_params.pad_h, kernel_params.pad_w)
+        return TrinnityNode(pool_op, c_i, w_i, h_i, k_h, s_w, s_h, c_o, w_o, h_o)
 
     def map_inner_product(self, node):
         assert node.parameters.axis == 1
@@ -346,14 +356,21 @@ class TrinnityMapper(IRNodeMapper):
         return MaybeActivated(node)('fc', c_i, w_i, h_i, node.parameters.num_output)
 
     def map_softmax(self, node):
-        return TrinnityNode('softmax')
+        return TrinnityNode('softmax', node.parents[0].output_shape[1])
 
     def map_lrn(self, node):
         params = node.parameters
         assert params.local_size % 2 == 1
         # Caffe scales by (alpha/(2*n+1))
         alpha = params.alpha / float(params.local_size)
-        return TrinnityNode('lrn', int(params.local_size / 2), alpha, params.beta)
+        c_i = node.parents[0].output_shape[1]
+        h_i = node.parents[0].output_shape[2]
+        w_i = node.parents[0].output_shape[3]
+        kwargs = {}
+        kwargs['alpha'] = alpha
+        kwargs['beta'] = params.beta
+        kwargs['size'] = int(params.local_size / 2)
+        return TrinnityNode('lrn', c_i, w_i, h_i, 'triNNity::layout::CHW', **kwargs)
 
     def map_concat(self, node):
         axis = (2, 3, 1, 0)[node.parameters.axis]
@@ -410,7 +427,7 @@ class TrinnityEmitter(object):
         (allocs, code) = node.emit()
         self.collected_allocations += allocs
         self.collected_code += list(map(lambda x: self.statement(str(x)), code))
-        self.collected_layers += [self.statement(node.node.name + ".execute();")]
+        self.collected_layers += [node.node.name + ".execute();"]
 
     def emit(self, name, chains):
         s = self.emit_imports(name)
@@ -423,7 +440,11 @@ class TrinnityEmitter(object):
         s += '\n\n'
         s += ''.join(self.collected_code)
         s += '\n\n'
-        s += ''.join(self.collected_layers)
+        s += self.statement('void execute() {')
+        self.indent()
+        s += ''.join(list(map(lambda x: self.statement(x), self.collected_layers)))
+        self.outdent()
+        s += self.statement('}')
         return s
 
 
