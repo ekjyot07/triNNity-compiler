@@ -502,8 +502,7 @@ def convert_trinnity(def_path, caffemodel_path, data_output_path, code_output_pa
 
 '''
 
-  main_code_preamble_A = '''
-  unsigned times[NO_OF_RUNS];
+  main_code_preamble_A = '''  unsigned times[NO_OF_RUNS];
 
   auto t1 = std::chrono::high_resolution_clock::now();
 
@@ -558,6 +557,7 @@ def convert_trinnity(def_path, caffemodel_path, data_output_path, code_output_pa
         src_out.write(tsrc[3])
         src_out.write(main_code_preamble_B)
         src_out.write('\n')
+        src_out.write('  std::cerr << "TOP-1 label index: " << ((std::max_element(prob.output, prob.output+10)) - prob.output) / sizeof(ACTIVATION_TYPE) << std::endl;\n')
         src_out.write('  delete [] data;')
         src_out.write(main_code_postamble)
     print_stderr('Done.')
