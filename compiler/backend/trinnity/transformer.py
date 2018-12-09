@@ -49,7 +49,12 @@ class TrinnityNode(object):
         has_relu = 'relu' in self.kwargs and self.kwargs['relu']
 
         # Collect allocations
-        allocs = []
+        weight_decls = []
+        act_decls = []
+        decl_sizes = []
+
+        if (self.node.get_only_parent().name == 'data'):
+            self.input_buffer_name = 'data'
 
         # Select the triNNity primitive corresponding to this op
         if (self.op == 'conv'):
@@ -60,28 +65,34 @@ class TrinnityNode(object):
 
             # Set up input buffer
             if (self.op not in self.magic_layers):
-                papa = self.node.get_only_parent()
-                self.input_buffer_name = papa.name + '.output'
-                self.input_buffer = ''
+                if (self.input_buffer_name is None):
+                    papa = self.node.get_only_parent()
+                    self.input_buffer_name = papa.name + '.output'
+                    self.input_buffer = ''
             else:
                 self.input_buffer_name = self.node.name + '_input'
-                self.input_buffer = 'ACTIVATION_TYPE' + ' * ' + self.input_buffer_name + ' = new ' + 'ACTIVATION_TYPE' + '[' + str(int(args[0])*int(args[1])*int(args[2])) + '];'
-                allocs += [self.input_buffer + '\n']
+                self.input_buffer = 'ACTIVATION_TYPE' + ' * ' + self.input_buffer_name + ';'
+                act_decls += [(self.input_buffer_name, self.input_buffer + '\n')]
+                decl_sizes += [str(int(args[0])*int(args[1])*int(args[2]))]
 
             # Set up weights buffer
             self.weights_buffer_name = self.node.name + '_weights'
-            self.weights_buffer = 'WEIGHT_TYPE' + ' * ' + self.weights_buffer_name + ' = new ' + 'WEIGHT_TYPE' + '[' + str(int(args[0])*int(args[3])*int(args[3])*int(args[6])) + '];'
-            allocs += [self.weights_buffer + '\n']
+            self.weights_buffer = 'WEIGHT_TYPE' + ' * ' + self.weights_buffer_name + ';'
+            weight_decls += [(self.weights_buffer_name, self.weights_buffer + '\n')]
+            decl_sizes += [str(int(args[0])*int(args[3])*int(args[3])*int(args[6]))]
 
             # Set up bias buffer
             self.bias_buffer_name = self.node.name + '_bias'
-            self.bias_buffer = 'WEIGHT_TYPE' + ' * ' + self.bias_buffer_name + ' = new ' + 'WEIGHT_TYPE' + '[' + str(int(args[6])) + '];'
-            allocs += [self.bias_buffer + '\n']
+            self.bias_buffer = 'WEIGHT_TYPE' + ' * ' + self.bias_buffer_name + ';'
+            weight_decls += [(self.bias_buffer_name, self.bias_buffer + '\n')]
+            decl_sizes += [str(int(args[6]))]
 
             # Set up output buffer
             self.output_buffer_name = self.node.name + '_output'
-            self.output_buffer = 'ACTIVATION_TYPE' + ' * ' + self.output_buffer_name + ' = new ' + 'ACTIVATION_TYPE' + '[' + str(int(args[6])*int(args[1])*int(args[2])) + '];'
-            allocs += [self.output_buffer + '\n']
+            self.output_buffer = 'ACTIVATION_TYPE' + ' * ' + self.output_buffer_name + ';'
+            act_decls += [(self.output_buffer_name, self.output_buffer + '\n')]
+            print_stderr(str(int(args[6])*int(args[7])*int(args[8])))
+            decl_sizes += [str(int(args[6])*int(args[7])*int(args[8]))]
 
             args = ', '.join(['ACTIVATION_TYPE', 'WEIGHT_TYPE', 'ACTIVATION_TYPE', 'LAYER_'+self.node.name.upper()+'_METHOD', 'triNNity::GEMM_BLAS'] + args + ['LAYER_'+(self.node.name.upper())+'_IN_FMT', 'triNNity::BOUND_IMPLICIT_PAD', act])
 
@@ -90,28 +101,32 @@ class TrinnityNode(object):
 
             # Set up input buffer
             if (self.op not in self.magic_layers):
-                papa = self.node.get_only_parent()
-                self.input_buffer_name = papa.name + '.output'
-                self.input_buffer = ''
+                if (self.input_buffer_name is None):
+                    papa = self.node.get_only_parent()
+                    self.input_buffer_name = papa.name + '.output'
+                    self.input_buffer = ''
             else:
                 self.input_buffer_name = self.node.name + '_input'
-                self.input_buffer = 'ACTIVATION_TYPE' + ' * ' + self.input_buffer_name + ' = new ' + 'ACTIVATION_TYPE' + '[' + str(int(args[0])*int(args[1])*int(args[2])) + '];'
-                allocs += [self.input_buffer + '\n']
+                self.input_buffer = 'ACTIVATION_TYPE' + ' * ' + self.input_buffer_name + ';'
+                act_decls += [(self.input_buffer_name, self.input_buffer + '\n')]
+                decl_sizes += [str(int(args[0])*int(args[1])*int(args[2]))]
 
-            args = ', '.join(['ACTIVATION_TYPE', 'WEIGHT_TYPE', 'ACTIVATION_TYPE'] + args)
+            args = ', '.join(['ACTIVATION_TYPE'] + args)
 
         elif (self.op == 'max_pool'):
             self.op = 'triNNity::layer::PoolingLayer'
 
             # Set up input buffer
             if (self.op not in self.magic_layers):
-                papa = self.node.get_only_parent()
-                self.input_buffer_name = papa.name + '.output'
-                self.input_buffer = ''
+                if (self.input_buffer_name is None):
+                    papa = self.node.get_only_parent()
+                    self.input_buffer_name = papa.name + '.output'
+                    self.input_buffer = ''
             else:
                 self.input_buffer_name = self.node.name + '_input'
-                self.input_buffer = 'ACTIVATION_TYPE' + ' * ' + self.input_buffer_name + ' = new ' + 'ACTIVATION_TYPE' + '[' + str(int(args[0])*int(args[1])*int(args[2])) + '];'
-                allocs += [self.input_buffer + '\n']
+                self.input_buffer = 'ACTIVATION_TYPE' + ' * ' + self.input_buffer_name + ';'
+                act_decls += [(self.input_buffer_name, self.input_buffer + '\n')]
+                decl_sizes += [str(int(args[0])*int(args[1])*int(args[2]))]
 
             args = ', '.join(['ACTIVATION_TYPE', 'triNNity::WINDOW_MAXPOOL'] + args)
 
@@ -120,13 +135,15 @@ class TrinnityNode(object):
 
             # Set up input buffer
             if (self.op not in self.magic_layers):
-                papa = self.node.get_only_parent()
-                self.input_buffer_name = papa.name + '.output'
-                self.input_buffer = ''
+                if (self.input_buffer_name is None):
+                    papa = self.node.get_only_parent()
+                    self.input_buffer_name = papa.name + '.output'
+                    self.input_buffer = ''
             else:
                 self.input_buffer_name = self.node.name + '_input'
-                self.input_buffer = 'ACTIVATION_TYPE' + ' * ' + self.input_buffer_name + ' = new ' + 'ACTIVATION_TYPE' + '[' + str(int(args[0])*int(args[1])*int(args[2])) + '];'
-                allocs += [self.input_buffer + '\n']
+                self.input_buffer = 'ACTIVATION_TYPE' + ' * ' + self.input_buffer_name + ';'
+                act_decls += [(self.input_buffer_name, self.input_buffer + '\n')]
+                decl_sizes += [str(int(args[0])*int(args[1])*int(args[2]))]
 
             args = ', '.join(['ACTIVATION_TYPE', 'triNNity::WINDOW_AVGPOOL'] + args)
 
@@ -135,18 +152,21 @@ class TrinnityNode(object):
 
             # Set up input buffer
             if (self.op not in self.magic_layers):
-                papa = self.node.get_only_parent()
-                self.input_buffer_name = papa.name + '.output'
-                self.input_buffer = ''
+                if (self.input_buffer_name is None):
+                    papa = self.node.get_only_parent()
+                    self.input_buffer_name = papa.name + '.output'
+                    self.input_buffer = ''
             else:
                 self.input_buffer_name = self.node.name + '_input'
-                self.input_buffer = 'ACTIVATION_TYPE' + ' * ' + self.input_buffer_name + ' = new ' + 'ACTIVATION_TYPE' + '[' + str(int(args[0])*int(args[1])*int(args[2])) + '];'
-                allocs += [self.input_buffer + '\n']
+                self.input_buffer = 'ACTIVATION_TYPE' + ' * ' + self.input_buffer_name + ';'
+                act_decls += [(self.input_buffer_name, self.input_buffer + '\n')]
+                decl_sizes += [str(int(args[0])*int(args[1])*int(args[2]))]
 
             # Set up weights buffer
             self.weights_buffer_name = self.node.name + '_weights'
-            self.weights_buffer = 'WEIGHT_TYPE' + ' * ' + self.weights_buffer_name + ' = new ' + 'WEIGHT_TYPE' + '[' + str(int(args[0])*int(args[0])*int(args[0])) + '];'
-            allocs += [self.weights_buffer + '\n']
+            self.weights_buffer = 'WEIGHT_TYPE' + ' * ' + self.weights_buffer_name + ';'
+            weight_decls += [(self.weights_buffer_name, self.weights_buffer + '\n')]
+            decl_sizes += [str(int(args[0])*int(args[1])*int(args[2])*int(args[3]))]
 
             args = ', '.join(['ACTIVATION_TYPE', 'WEIGHT_TYPE', 'triNNity::GEMV_BLAS'] + args)
 
@@ -155,13 +175,15 @@ class TrinnityNode(object):
 
             # Set up input buffer
             if (self.op not in self.magic_layers):
-                papa = self.node.get_only_parent()
-                self.input_buffer_name = papa.name + '.output'
-                self.input_buffer = ''
+                if (self.input_buffer_name is None):
+                    papa = self.node.get_only_parent()
+                    self.input_buffer_name = papa.name + '.output'
+                    self.input_buffer = ''
             else:
                 self.input_buffer_name = self.node.name + '_input'
-                self.input_buffer = 'ACTIVATION_TYPE' + ' * ' + self.input_buffer_name + ' = new ' + 'ACTIVATION_TYPE' + '[' + str(int(args[0])*int(args[1])*int(args[2])) + '];'
-                allocs += [self.input_buffer + '\n']
+                self.input_buffer = 'ACTIVATION_TYPE' + ' * ' + self.input_buffer_name + ';'
+                act_decls += [(self.input_buffer_name, self.input_buffer + '\n')]
+                decl_sizes += [str(int(args[0])*int(args[1])*int(args[2]))]
 
             args = ', '.join(['ACTIVATION_TYPE'] + args)
 
@@ -170,13 +192,15 @@ class TrinnityNode(object):
 
             # Set up input buffer
             if (self.op not in self.magic_layers):
-                papa = self.node.get_only_parent()
-                self.input_buffer_name = papa.name + '.output'
-                self.input_buffer = ''
+                if (self.input_buffer_name is None):
+                    papa = self.node.get_only_parent()
+                    self.input_buffer_name = papa.name + '.output'
+                    self.input_buffer = ''
             else:
                 self.input_buffer_name = self.node.name + '_input'
-                self.input_buffer = 'ACTIVATION_TYPE' + ' * ' + self.input_buffer_name + ' = new ' + 'ACTIVATION_TYPE' + '[' + str(int(args[0])*int(args[1])*int(args[2])) + '];'
-                allocs += [self.input_buffer + '\n']
+                self.input_buffer = 'ACTIVATION_TYPE' + ' * ' + self.input_buffer_name + ';'
+                act_decls += [(self.input_buffer_name, self.input_buffer + '\n')]
+                decl_sizes += [str(int(args[0])*int(args[1])*int(args[2]))]
 
             args = ', '.join(['ACTIVATION_TYPE'] + args)
 
@@ -185,13 +209,15 @@ class TrinnityNode(object):
 
             # Set up input buffer
             if (self.op not in self.magic_layers):
-                papa = self.node.get_only_parent()
-                self.input_buffer_name = papa.name + '.output'
-                self.input_buffer = ''
+                if (self.input_buffer_name is None):
+                    papa = self.node.get_only_parent()
+                    self.input_buffer_name = papa.name + '.output'
+                    self.input_buffer = ''
             else:
                 self.input_buffer_name = self.node.name + '_input'
-                self.input_buffer = 'ACTIVATION_TYPE' + ' * ' + self.input_buffer_name + ' = new ' + 'ACTIVATION_TYPE' + '[' + str(int(args[0])*int(args[1])*int(args[2])) + '];'
-                allocs += [self.input_buffer + '\n']
+                self.input_buffer = 'ACTIVATION_TYPE' + ' * ' + self.input_buffer_name + ';'
+                act_decls += [(self.input_buffer_name, self.input_buffer + '\n')]
+                decl_sizes += [str(int(args[0])*int(args[1])*int(args[2]))]
 
             args = ', '.join(['ACTIVATION_TYPE', 'WEIGHT_TYPE', 'ACTIVATION_TYPE'] + args)
 
@@ -200,13 +226,15 @@ class TrinnityNode(object):
 
             # Set up input buffer
             if (self.op not in self.magic_layers):
-                papa = self.node.get_only_parent()
-                self.input_buffer_name = papa.name + '.output'
-                self.input_buffer = ''
+                if (self.input_buffer_name is None):
+                    papa = self.node.get_only_parent()
+                    self.input_buffer_name = papa.name + '.output'
+                    self.input_buffer = ''
             else:
                 self.input_buffer_name = self.node.name + '_input'
-                self.input_buffer = 'ACTIVATION_TYPE' + ' * ' + self.input_buffer_name + ' = new ' + 'ACTIVATION_TYPE' + '[' + str(int(args[0])*int(args[1])*int(args[2])) + '];'
-                allocs += [self.input_buffer + '\n']
+                self.input_buffer = 'ACTIVATION_TYPE' + ' * ' + self.input_buffer_name + ';'
+                act_decls += [(self.input_buffer_name, self.input_buffer + '\n')]
+                decl_sizes += [str(int(args[0])*int(args[1])*int(args[2]))]
 
             args = ', '.join(['ACTIVATION_TYPE', 'WEIGHT_TYPE', 'ACTIVATION_TYPE'] + args)
 
@@ -216,13 +244,15 @@ class TrinnityNode(object):
 
             # Set up input buffer
             if (self.op not in self.magic_layers):
-                papa = self.node.get_only_parent()
-                self.input_buffer_name = papa.name + '.output'
-                self.input_buffer = ''
+                if (self.input_buffer_name is None):
+                    papa = self.node.get_only_parent()
+                    self.input_buffer_name = papa.name + '.output'
+                    self.input_buffer = ''
             else:
                 self.input_buffer_name = self.node.name + '_input'
-                self.input_buffer = 'ACTIVATION_TYPE' + ' * ' + self.input_buffer_name + ' = new ' + 'ACTIVATION_TYPE' + '[' + str(int(args[0])*int(args[1])*int(args[2])) + '];'
-                allocs += [self.input_buffer + '\n']
+                self.input_buffer = 'ACTIVATION_TYPE' + ' * ' + self.input_buffer_name + ';'
+                act_decls += [(self.input_buffer_name, self.input_buffer + '\n')]
+                decl_sizes += [str(int(args[0])*int(args[1])*int(args[2]))]
 
             args = ', '.join(['ACTIVATION_TYPE', 'WEIGHT_TYPE', 'ACTIVATION_TYPE'] + args)
 
@@ -232,13 +262,15 @@ class TrinnityNode(object):
 
             # Set up input buffer
             if (self.op not in self.magic_layers):
-                papa = self.node.get_only_parent()
-                self.input_buffer_name = papa.name + '.output'
-                self.input_buffer = ''
+                if (self.input_buffer_name is None):
+                    papa = self.node.get_only_parent()
+                    self.input_buffer_name = papa.name + '.output'
+                    self.input_buffer = ''
             else:
                 self.input_buffer_name = self.node.name + '_input'
-                self.input_buffer = 'ACTIVATION_TYPE' + ' * ' + self.input_buffer_name + ' = new ' + 'ACTIVATION_TYPE' + '[' + str(int(args[0])*int(args[1])*int(args[2])) + '];'
-                allocs += [self.input_buffer + '\n']
+                self.input_buffer = 'ACTIVATION_TYPE' + ' * ' + self.input_buffer_name + ';'
+                act_decls += [(self.input_buffer_name, self.input_buffer + '\n')]
+                decl_sizes += [str(int(args[0])*int(args[1])*int(args[2]))]
 
             args = ', '.join(['ACTIVATION_TYPE', 'WEIGHT_TYPE', 'ACTIVATION_TYPE'] + args)
 
@@ -248,13 +280,15 @@ class TrinnityNode(object):
 
             # Set up input buffer
             if (self.op not in self.magic_layers):
-                papa = self.node.get_only_parent()
-                self.input_buffer_name = papa.name + '.output'
-                self.input_buffer = ''
+                if (self.input_buffer_name is None):
+                    papa = self.node.get_only_parent()
+                    self.input_buffer_name = papa.name + '.output'
+                    self.input_buffer = ''
             else:
                 self.input_buffer_name = self.node.name + '_input'
-                self.input_buffer = 'ACTIVATION_TYPE' + ' * ' + self.input_buffer_name + ' = new ' + 'ACTIVATION_TYPE' + '[' + str(int(args[0])*int(args[1])*int(args[2])) + '];'
-                allocs += [self.input_buffer + '\n']
+                self.input_buffer = 'ACTIVATION_TYPE' + ' * ' + self.input_buffer_name + ';'
+                act_decls += [(self.input_buffer_name, self.input_buffer + '\n')]
+                decl_sizes += [str(int(args[0])*int(args[1])*int(args[2]))]
 
             args = ', '.join(['ACTIVATION_TYPE', 'WEIGHT_TYPE', 'ACTIVATION_TYPE'] + args)
 
@@ -275,9 +309,9 @@ class TrinnityNode(object):
 
         outputs = []
         if (self.orig_op not in self.magic_layers):
-          outputs += [self.op + '<' + args + '>' + ' ' + self.node.name + '(' + ', '.join(dynamic_args) + ');']
+            outputs += [self.op + '<' + args + '>' + ' ' + self.node.name + '(' + ', '.join(dynamic_args) + ');']
 
-        return (allocs, outputs)
+        return (weight_decls, act_decls, decl_sizes, outputs)
 
 
 class MaybeActivated(object):
@@ -322,7 +356,10 @@ class TrinnityMapper(IRNodeMapper):
         return MaybeActivated(node)('conv', c_i, w_i, h_i, k_w, s_w, s_h, c_o, w_o, h_o, **kwargs)
 
     def map_relu(self, node):
-        return TrinnityNode('relu')
+        c_i = node.parents[0].output_shape[1]
+        h_i = node.parents[0].output_shape[2]
+        w_i = node.parents[0].output_shape[3]
+        return TrinnityNode('relu', c_i, w_i, h_i, 'triNNity::ACTIVATION_RELU')
 
     def map_pooling(self, node):
         pool_type = node.parameters.pool
@@ -401,7 +438,9 @@ class TrinnityEmitter(object):
     def __init__(self, tab=None):
         self.tab = tab or ' ' * 2
         self.prefix = ''
-        self.collected_allocations = []
+        self.collected_weight_declarations = []
+        self.collected_activation_declarations = []
+        self.collected_declaration_sizes = []
         self.collected_code = []
         self.collected_layers = []
 
@@ -424,22 +463,28 @@ class TrinnityEmitter(object):
         return self.statement(s)
 
     def emit_node(self, node):
-        (allocs, code) = node.emit()
-        self.collected_allocations += allocs
+        (weight_decls, activation_decls, decl_sizes, code) = node.emit()
+        self.collected_weight_declarations += weight_decls
+        self.collected_activation_declarations += activation_decls
+        self.collected_declaration_sizes += decl_sizes
         self.collected_code += list(map(lambda x: self.statement(str(x)), code))
         self.collected_layers += [node.node.name + ".execute();"]
 
     def emit(self, name, chains):
         s = self.emit_imports(name)
+        s += '\n'
+        s += self.statement('ACTIVATION_TYPE * data;')
 
         for chain in chains:
             for node in chain:
                 self.emit_node(node)
 
-        s += ''.join(self.collected_allocations)
-        s += '\n\n'
+        s += ''.join(list(map(lambda x: x[1], self.collected_weight_declarations)))
+        s += '\n'
+        s += ''.join(list(map(lambda x: x[1], self.collected_activation_declarations)))
+        s += '\n'
         s += ''.join(self.collected_code)
-        s += '\n\n'
+        s += '\n'
         s += self.statement('void execute() {')
         self.indent()
         s += ''.join(list(map(lambda x: self.statement(x), self.collected_layers)))
@@ -477,12 +522,13 @@ class TrinnityTransformer(object):
                                             LayerKind.BatchNorm]),
 
             # Rename nodes
-            # Slashes are used for scoping in Trinnity. Replace slashes
-            # in node names with underscores.
             # (Caffe's GoogLeNet implementation uses slashes)
             NodeRenamer(lambda node: node.name.replace('/', '_'))
         ]
         self.graph = graph.transformed(transformers)
+        self.data_size = 1
+        for x in self.graph.get_node('data').output_shape:
+            self.data_size *= x
 
         # Display the graph
         if self.verbose:
@@ -494,4 +540,7 @@ class TrinnityTransformer(object):
             chains = mapper.map()
             emitter = TrinnityEmitter()
             self.source = emitter.emit(self.graph.name, chains)
+            self.activation_declarations = emitter.collected_activation_declarations
+            self.weight_declarations = emitter.collected_weight_declarations
+            self.declaration_sizes = emitter.collected_declaration_sizes
         return [self.source]

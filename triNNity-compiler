@@ -493,11 +493,37 @@ if __name__ == '__main__':
     fatal_error('Error encountered: {}'.format(err))
 
 def convert_trinnity(def_path, caffemodel_path, data_output_path, code_output_path, phase):
-  preamble = '''#include <triNNity/layer.h>
+  preamble = '''#include <chrono>
+#include <iostream>
+#include <algorithm>
+#include <triNNity/layer.h>
 #include <triNNity/generic/layer.h>
 #include <triNNity/dense/cpu/layer.h>
 
 '''
+
+  main_code_preamble = '''
+  unsigned times[NO_OF_RUNS];
+
+  auto t1 = std::chrono::high_resolution_clock::now();
+
+  for (unsigned i = 0; i < NO_OF_RUNS; i++) {
+    execute();
+    auto t2 = std::chrono::high_resolution_clock::now();
+    times[i] = std::chrono::duration_cast<std::chrono::milliseconds>(t2-t1).count();
+    t1 = t2;
+  }
+
+  for (unsigned i = 0; i < NO_OF_RUNS; i++) {
+    std::cout << times[i] << std::endl;
+  }
+  '''
+
+  main_code_postamble = '''
+  return 0;
+}
+  '''
+
   try:
     from compiler.backend.trinnity import TrinnityTransformer
     transformer = TrinnityTransformer(def_path, caffemodel_path, phase=phase)
@@ -514,6 +540,22 @@ def convert_trinnity(def_path, caffemodel_path, data_output_path, code_output_pa
       with open(code_output_path, 'w') as src_out:
         src_out.write(preamble)
         src_out.write(transformer.transform_source()[0])
+        src_out.write('\n')
+        src_out.write('int main(int argc, char **argv) {\n')
+        src_out.write('  data = new ACTIVATION_TYPE[{}];'.format(transformer.data_size))
+        src_out.write('\n  ')
+        act_allocs = transformer.activation_declarations
+        act_allocs = [('ACTIVATION_TYPE', x) for x in act_allocs]
+        weight_allocs = transformer.weight_declarations
+        weight_allocs = [('WEIGHT_TYPE', x) for x in weight_allocs]
+        allocs = list(map(lambda x: (x[0], x[1][0]), act_allocs+weight_allocs))
+        allocs = zip(allocs, transformer.declaration_sizes)
+        src_out.write('\n  '.join(map(str, (list(map(lambda x: '{} = new {}[{}];'.format(x[0][1], x[0][0], x[1]), (allocs)))))))
+        src_out.write('\n')
+        src_out.write(main_code_preamble)
+        src_out.write('\n')
+        src_out.write('  delete [] data;')
+        src_out.write(main_code_postamble)
     print_stderr('Done.')
   except CompilerError as err:
     fatal_error('Error encountered: {}'.format(err))
