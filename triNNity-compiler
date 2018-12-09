@@ -502,13 +502,14 @@ def convert_trinnity(def_path, caffemodel_path, data_output_path, code_output_pa
 
 '''
 
-  main_code_preamble = '''
-  unsigned times[NO_OF_RUNS];
+  main_code_preamble_A = '''  unsigned times[NO_OF_RUNS];
 
   auto t1 = std::chrono::high_resolution_clock::now();
 
   for (unsigned i = 0; i < NO_OF_RUNS; i++) {
-    execute();
+'''
+
+  main_code_preamble_B = '''
     auto t2 = std::chrono::high_resolution_clock::now();
     times[i] = std::chrono::duration_cast<std::chrono::milliseconds>(t2-t1).count();
     t1 = t2;
@@ -538,16 +539,25 @@ def convert_trinnity(def_path, caffemodel_path, data_output_path, code_output_pa
     if code_output_path:
       print_stderr('Generating code for model...')
       with open(code_output_path, 'w') as src_out:
+        tsrc = transformer.transform_source()
         src_out.write(preamble)
-        src_out.write(transformer.transform_source()[0])
+        src_out.write('\n')
+        src_out.write(tsrc[0])
         src_out.write('\n')
         src_out.write('int main(int argc, char **argv) {\n')
-        src_out.write('  data = new ACTIVATION_TYPE[{}];'.format(transformer.data_size))
+        src_out.write('\n')
+        src_out.write(tsrc[1])
+        src_out.write('  data = new ACTIVATION_TYPE[{}]();'.format(transformer.data_size))
         src_out.write('\n  ')
-        src_out.write('\n  '.join(map(str, (list(map(lambda x: '{} = new {}[{}];'.format(x[0], x[2], x[3]), transformer.declarations))))))
+        src_out.write('\n  '.join(map(str, (list(map(lambda x: '{} = new {}[{}]();'.format(x[0], x[2], x[3]), transformer.declarations))))))
         src_out.write('\n')
-        src_out.write(main_code_preamble)
         src_out.write('\n')
+        src_out.write(tsrc[2])
+        src_out.write(main_code_preamble_A)
+        src_out.write(tsrc[3])
+        src_out.write(main_code_preamble_B)
+        src_out.write('\n')
+        src_out.write('  std::cerr << "TOP-1 label index: " << ((std::max_element(prob.output, prob.output+10)) - prob.output) / sizeof(ACTIVATION_TYPE) << std::endl;\n')
         src_out.write('  delete [] data;')
         src_out.write(main_code_postamble)
     print_stderr('Done.')
