@@ -72,22 +72,22 @@ class TrinnityNode(object):
             else:
                 self.input_buffer_name = self.node.name + '_input'
                 self.input_buffer = 'ACTIVATION_TYPE' + ' * ' + self.input_buffer_name + ';'
-                decls += [(self.input_buffer_name, self.input_buffer + '\n', 'ACTIVATION_TYPE', str(int(args[0])*int(args[1])*int(args[2])))]
+                decls += [(self.input_buffer_name, self.input_buffer, 'ACTIVATION_TYPE', str(int(args[0])*int(args[1])*int(args[2])))]
 
             # Set up weights buffer
             self.weights_buffer_name = self.node.name + '_weights'
             self.weights_buffer = 'WEIGHT_TYPE' + ' * ' + self.weights_buffer_name + ';'
-            decls += [(self.weights_buffer_name, self.weights_buffer + '\n', 'WEIGHT_TYPE', str(int(args[0])*int(args[3])*int(args[3])*int(args[6])))]
+            decls += [(self.weights_buffer_name, self.weights_buffer, 'WEIGHT_TYPE', str(int(args[0])*int(args[3])*int(args[3])*int(args[6])))]
 
             # Set up bias buffer
             self.bias_buffer_name = self.node.name + '_bias'
             self.bias_buffer = 'WEIGHT_TYPE' + ' * ' + self.bias_buffer_name + ';'
-            decls += [(self.bias_buffer_name, self.bias_buffer + '\n', 'WEIGHT_TYPE', str(int(args[6])))]
+            decls += [(self.bias_buffer_name, self.bias_buffer, 'WEIGHT_TYPE', str(int(args[6])))]
 
             # Set up output buffer
             self.output_buffer_name = self.node.name + '_output'
             self.output_buffer = 'ACTIVATION_TYPE' + ' * ' + self.output_buffer_name + ';'
-            decls += [(self.output_buffer_name, self.output_buffer + '\n', 'ACTIVATION_TYPE', str(int(args[6])*int(args[7])*int(args[8])))]
+            decls += [(self.output_buffer_name, self.output_buffer, 'ACTIVATION_TYPE', str(int(args[6])*int(args[7])*int(args[8])))]
 
             args = ', '.join(['ACTIVATION_TYPE', 'WEIGHT_TYPE', 'ACTIVATION_TYPE', 'LAYER_'+self.node.name.upper()+'_METHOD', 'triNNity::GEMM_BLAS'] + args + ['LAYER_'+(self.node.name.upper())+'_IN_FMT', 'triNNity::BOUND_IMPLICIT_PAD', act])
 
@@ -103,7 +103,7 @@ class TrinnityNode(object):
             else:
                 self.input_buffer_name = self.node.name + '_input'
                 self.input_buffer = 'ACTIVATION_TYPE' + ' * ' + self.input_buffer_name + ';'
-                decls += [(self.input_buffer_name, self.input_buffer + '\n', 'ACTIVATION_TYPE', str(int(args[0])*int(args[1])*int(args[2])))]
+                decls += [(self.input_buffer_name, self.input_buffer, 'ACTIVATION_TYPE', str(int(args[0])*int(args[1])*int(args[2])))]
 
             args = ', '.join(['ACTIVATION_TYPE'] + args)
 
@@ -119,7 +119,7 @@ class TrinnityNode(object):
             else:
                 self.input_buffer_name = self.node.name + '_input'
                 self.input_buffer = 'ACTIVATION_TYPE' + ' * ' + self.input_buffer_name + ';'
-                decls += [(self.input_buffer_name, self.input_buffer + '\n', 'ACTIVATION_TYPE', str(int(args[0])*int(args[1])*int(args[2])))]
+                decls += [(self.input_buffer_name, self.input_buffer, 'ACTIVATION_TYPE', str(int(args[0])*int(args[1])*int(args[2])))]
 
             args = ', '.join(['ACTIVATION_TYPE', 'triNNity::WINDOW_MAXPOOL'] + args)
 
@@ -135,7 +135,7 @@ class TrinnityNode(object):
             else:
                 self.input_buffer_name = self.node.name + '_input'
                 self.input_buffer = 'ACTIVATION_TYPE' + ' * ' + self.input_buffer_name + ';'
-                decls += [(self.input_buffer_name, self.input_buffer + '\n', 'ACTIVATION_TYPE', str(int(args[0])*int(args[1])*int(args[2])))]
+                decls += [(self.input_buffer_name, self.input_buffer, 'ACTIVATION_TYPE', str(int(args[0])*int(args[1])*int(args[2])))]
 
             args = ', '.join(['ACTIVATION_TYPE', 'triNNity::WINDOW_AVGPOOL'] + args)
 
@@ -151,12 +151,12 @@ class TrinnityNode(object):
             else:
                 self.input_buffer_name = self.node.name + '_input'
                 self.input_buffer = 'ACTIVATION_TYPE' + ' * ' + self.input_buffer_name + ';'
-                decls += [(self.input_buffer_name, self.input_buffer + '\n', 'ACTIVATION_TYPE', str(int(args[0])*int(args[1])*int(args[2])))]
+                decls += [(self.input_buffer_name, self.input_buffer, 'ACTIVATION_TYPE', str(int(args[0])*int(args[1])*int(args[2])))]
 
             # Set up weights buffer
             self.weights_buffer_name = self.node.name + '_weights'
             self.weights_buffer = 'WEIGHT_TYPE' + ' * ' + self.weights_buffer_name + ';'
-            decls += [(self.weights_buffer_name, self.weights_buffer + '\n', 'WEIGHT_TYPE', str(int(args[0])*int(args[1])*int(args[2])*int(args[3])))]
+            decls += [(self.weights_buffer_name, self.weights_buffer, 'WEIGHT_TYPE', str(int(args[0])*int(args[1])*int(args[2])*int(args[3])))]
 
             args = ', '.join(['ACTIVATION_TYPE', 'WEIGHT_TYPE', 'triNNity::GEMV_BLAS'] + args)
 
@@ -172,7 +172,7 @@ class TrinnityNode(object):
             else:
                 self.input_buffer_name = self.node.name + '_input'
                 self.input_buffer = 'ACTIVATION_TYPE' + ' * ' + self.input_buffer_name + ';'
-                decls += [(self.input_buffer_name, self.input_buffer + '\n', 'ACTIVATION_TYPE', str(int(args[0])*int(args[1])*int(args[2])))]
+                decls += [(self.input_buffer_name, self.input_buffer, 'ACTIVATION_TYPE', str(int(args[0])*int(args[1])*int(args[2])))]
 
             args = ', '.join(['ACTIVATION_TYPE'] + args)
 
@@ -188,7 +188,7 @@ class TrinnityNode(object):
             else:
                 self.input_buffer_name = self.node.name + '_input'
                 self.input_buffer = 'ACTIVATION_TYPE' + ' * ' + self.input_buffer_name + ';'
-                decls += [(self.input_buffer_name, self.input_buffer + '\n', 'ACTIVATION_TYPE', str(int(args[0])*int(args[1])*int(args[2])))]
+                decls += [(self.input_buffer_name, self.input_buffer, 'ACTIVATION_TYPE', str(int(args[0])*int(args[1])*int(args[2])))]
 
             args = ', '.join(['ACTIVATION_TYPE'] + args)
 
@@ -204,7 +204,7 @@ class TrinnityNode(object):
             else:
                 self.input_buffer_name = self.node.name + '_input'
                 self.input_buffer = 'ACTIVATION_TYPE' + ' * ' + self.input_buffer_name + ';'
-                decls += [(self.input_buffer_name, self.input_buffer + '\n', 'ACTIVATION_TYPE', str(int(args[0])*int(args[1])*int(args[2])))]
+                decls += [(self.input_buffer_name, self.input_buffer, 'ACTIVATION_TYPE', str(int(args[0])*int(args[1])*int(args[2])))]
 
             args = ', '.join(['ACTIVATION_TYPE'] + args)
 
@@ -220,7 +220,7 @@ class TrinnityNode(object):
             else:
                 self.input_buffer_name = self.node.name + '_input'
                 self.input_buffer = 'ACTIVATION_TYPE' + ' * ' + self.input_buffer_name + ';'
-                decls += [(self.input_buffer_name, self.input_buffer + '\n', 'ACTIVATION_TYPE', str(int(args[0])*int(args[1])*int(args[2])))]
+                decls += [(self.input_buffer_name, self.input_buffer, 'ACTIVATION_TYPE', str(int(args[0])*int(args[1])*int(args[2])))]
 
             args = ', '.join(['ACTIVATION_TYPE'] + args)
 
@@ -237,7 +237,7 @@ class TrinnityNode(object):
             else:
                 self.input_buffer_name = self.node.name + '_input'
                 self.input_buffer = 'ACTIVATION_TYPE' + ' * ' + self.input_buffer_name + ';'
-                decls += [(self.input_buffer_name, self.input_buffer + '\n', 'ACTIVATION_TYPE', str(int(args[0])*int(args[1])*int(args[2])))]
+                decls += [(self.input_buffer_name, self.input_buffer, 'ACTIVATION_TYPE', str(int(args[0])*int(args[1])*int(args[2])))]
 
             args = ', '.join(['ACTIVATION_TYPE'] + args)
 
@@ -254,7 +254,7 @@ class TrinnityNode(object):
             else:
                 self.input_buffer_name = self.node.name + '_input'
                 self.input_buffer = 'ACTIVATION_TYPE' + ' * ' + self.input_buffer_name + ';'
-                decls += [(self.input_buffer_name, self.input_buffer + '\n', 'ACTIVATION_TYPE', str(int(args[0])*int(args[1])*int(args[2])))]
+                decls += [(self.input_buffer_name, self.input_buffer, 'ACTIVATION_TYPE', str(int(args[0])*int(args[1])*int(args[2])))]
 
             args = ', '.join(['ACTIVATION_TYPE'] + args)
 
@@ -271,7 +271,7 @@ class TrinnityNode(object):
             else:
                 self.input_buffer_name = self.node.name + '_input'
                 self.input_buffer = 'ACTIVATION_TYPE' + ' * ' + self.input_buffer_name + ';'
-                decls += [(self.input_buffer_name, self.input_buffer + '\n', 'ACTIVATION_TYPE', str(int(args[0])*int(args[1])*int(args[2])))]
+                decls += [(self.input_buffer_name, self.input_buffer, 'ACTIVATION_TYPE', str(int(args[0])*int(args[1])*int(args[2])))]
 
             args = ', '.join(['ACTIVATION_TYPE'] + args)
 
@@ -450,25 +450,28 @@ class TrinnityEmitter(object):
         self.collected_layers += [node.node.name + ".execute();"]
 
     def emit(self, name, chains):
-        s = self.emit_imports(name)
-        s += '\n'
-        s += self.statement('ACTIVATION_TYPE * data;')
-        s += '\n'
+        i = self.emit_imports(name)
+        i += '\n'
+
+        self.indent()
+        d = self.statement('ACTIVATION_TYPE * data;')
 
         for chain in chains:
             for node in chain:
                 self.emit_node(node)
 
-        s += ''.join(list(map(lambda x: x[1], self.collected_declarations)))
-        s += '\n'
-        s += ''.join(self.collected_code)
-        s += '\n'
-        s += self.statement('static inline void execute() {')
+        d += ''.join(list(map(lambda x: self.statement(x[1]), self.collected_declarations)))
+        d += '\n'
+
+        c = ''.join(self.collected_code)
+        c += '\n'
+
+        e = self.statement('static inline void execute() {')
         self.indent()
-        s += ''.join(list(map(lambda x: self.statement(x), self.collected_layers)))
+        e += ''.join(list(map(lambda x: self.statement(x), self.collected_layers)))
         self.outdent()
-        s += self.statement('}')
-        return s
+        e += self.statement('}')
+        return [i, d, c, e]
 
 
 class TrinnityTransformer(object):
@@ -478,7 +481,7 @@ class TrinnityTransformer(object):
         self.phase = phase
         self.load(def_path, data_path, phase)
         self.params = None
-        self.source = None
+        self.sources = None
 
     def load(self, def_path, data_path, phase):
         # Build the graph
@@ -513,10 +516,10 @@ class TrinnityTransformer(object):
             print_stderr(self.graph)
 
     def transform_source(self):
-        if self.source is None:
+        if self.sources is None:
             mapper = TrinnityMapper(self.graph)
             chains = mapper.map()
             emitter = TrinnityEmitter()
-            self.source = emitter.emit(self.graph.name, chains)
+            self.sources = emitter.emit(self.graph.name, chains)
             self.declarations = emitter.collected_declarations
-        return [self.source]
+        return self.sources
