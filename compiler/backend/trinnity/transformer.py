@@ -466,11 +466,9 @@ class TrinnityEmitter(object):
         c = ''.join(self.collected_code)
         c += '\n'
 
-        e = self.statement('static inline void execute() {')
         self.indent()
-        e += ''.join(list(map(lambda x: self.statement(x), self.collected_layers)))
-        self.outdent()
-        e += self.statement('}')
+        e = ''.join(list(map(lambda x: self.statement(x), self.collected_layers)))
+
         return [i, d, c, e]
 
 
