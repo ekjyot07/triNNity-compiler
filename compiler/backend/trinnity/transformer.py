@@ -54,7 +54,7 @@ class TrinnityNode(object):
         # Collect allocations
         decls = []
 
-        if (self.node.get_only_parent().name == 'data'):
+        if (len(self.node.parents) == 1 and self.node.get_only_parent().name == 'data'):
             self.input_buffer_name = 'data'
 
         # Select the triNNity primitive corresponding to this op
@@ -196,12 +196,13 @@ class TrinnityNode(object):
         elif (self.op == 'concat'):
             self.op = 'triNNity::layer::ChannelwiseConcatLayer'
 
-            # Set up input buffer
+            # Set up input buffers
+            self.input_buffers = []
             if (self.op not in self.magic_layers):
                 if (self.input_buffer_name is None):
-                    papa = self.node.get_only_parent()
-                    self.input_buffer_name = papa.name + '.output'
-                    self.input_buffer = ''
+                    parents = self.node.get_all_parents()
+                    for n in parents:
+                      self.input_buffers.append(n.name + '.output')
             else:
                 self.input_buffer_name = self.node.name + '_input'
                 self.input_buffer = 'ACTIVATION_TYPE' + ' * ' + self.input_buffer_name + ';'
@@ -284,6 +285,9 @@ class TrinnityNode(object):
         dynamic_args = []
         if self.input_buffer_name:
             dynamic_args += [self.input_buffer_name]
+        if self.input_buffers: # Concat layer has multiple inputs
+            for x in self.input_buffers:
+              dynamic_args.append(x)
         if self.weights_buffer_name:
             dynamic_args += [self.weights_buffer_name]
         if self.bias_buffer_name:
@@ -396,6 +400,8 @@ class TrinnityMapper(IRNodeMapper):
 
     def map_concat(self, node):
         axis = [node.parameters.axis]
+        if axis != 1:
+            raise CompilerError('Found concat node with unsupported join axis: %s' % axis)
         return TrinnityNode('concat', axis)
 
     def map_dropout(self, node):

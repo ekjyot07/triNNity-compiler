@@ -1,3 +1,4 @@
+import math
 import numpy as np
 
 from ...util.errors import CompilerError, print_stderr
@@ -80,24 +81,21 @@ class MaybeActivated(object):
 
 class InfoMapper(IRNodeMapper):
 
-    def get_kernel_params(self, node):
-        kernel_params = node.layer.kernel_parameters
-        input_shape = node.get_only_parent().output_shape
-        return (kernel_params, {})
-
     def map_convolution(self, node):
-        (kernel_params, kwargs) = self.get_kernel_params(node)
+        kernel_params = node.layer.kernel_parameters
         k_h = kernel_params.kernel_h
         k_w = kernel_params.kernel_w
         s_h = kernel_params.stride_h
         s_w = kernel_params.stride_w
-        c_o = node.output_shape[1]
         c_i = node.parents[0].output_shape[1]
         h_i = node.parents[0].output_shape[2]
         w_i = node.parents[0].output_shape[3]
-        h_o = int(h_i / s_h)
-        w_o = int(w_i / s_w)
+        c_o = node.output_shape[1]
+        h_o = int(math.ceil(h_i / s_h))
+        w_o = int(math.ceil(w_i / s_w))
         group = node.parameters.group
+
+        kwargs = {}
         if group != 1:
             kwargs['group'] = group
         if not node.parameters.bias_term:

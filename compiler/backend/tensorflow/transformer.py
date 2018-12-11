@@ -75,7 +75,7 @@ class TensorFlowMapper(IRNodeMapper):
 
     def get_kernel_params(self, node):
         kernel_params = node.layer.kernel_parameters
-        input_shape = node.get_only_parent().output_shape
+        input_shape = node.parents[0].output_shape
         padding = get_padding_type(kernel_params, input_shape, node.output_shape)
         # Only emit the padding if it's not the default value.
         padding = {'padding': padding} if padding != 'SAME' else {}

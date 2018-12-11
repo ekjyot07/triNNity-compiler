@@ -102,7 +102,7 @@ class DataReshaper(object):
 
     def has_spatial_parent(self, node):
         try:
-            parent = node.get_only_parent()
+            parent = node.parents[0]
             s = parent.output_shape
             return s.height > 1 or s.width > 1
         except CompilerError:
