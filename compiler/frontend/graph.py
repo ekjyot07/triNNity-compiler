@@ -32,8 +32,14 @@ class IRNode(object):
     def get_only_parent(self):
         if len(self.parents) != 1:
             raise CompilerError('IRNode (%s) expected to have 1 parent. Found %s.' %
-                             (self, len(self.parents)))
+                               (self, len(self.parents)))
         return self.parents[0]
+
+    def get_all_parents(self):
+        if len(self.parents) == 0:
+              raise CompilerError('IRNode (%s) expected to have >0 parents. Found %s.' %
+                                 (self, len(self.parents)))
+        return self.parents
 
     @property
     def parameters(self):
