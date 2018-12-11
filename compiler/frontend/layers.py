@@ -129,8 +129,8 @@ class LayerAdapter(object):
     def kernel_parameters(self):
         assert self.kind in (LayerKind.Convolution, LayerKind.Pooling)
         params = self.parameters
-        k_h = self.get_kernel_value(params.kernel_h, params.kernel_size, 0)
-        k_w = self.get_kernel_value(params.kernel_w, params.kernel_size, 1)
+        k_h = self.get_kernel_value(params.kernel_h, params.kernel_size, 0, default=1)
+        k_w = self.get_kernel_value(params.kernel_w, params.kernel_size, 1, default=1)
         s_h = self.get_kernel_value(params.stride_h, params.stride, 0, default=1)
         s_w = self.get_kernel_value(params.stride_w, params.stride, 1, default=1)
         p_h = self.get_kernel_value(params.pad_h, params.pad, 0, default=0)
