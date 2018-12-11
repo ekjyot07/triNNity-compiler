@@ -5,9 +5,11 @@ Compile [Caffe](https://github.com/BVLC/caffe/) models to code.
 Currently supported backends:
 
 Python:
+
 - [tensorflow](https://github.com/tensorflow/tensorflow)
 
 C++:
+
 - [triNNity](https://bitbucket.org/STG-TCD/triNNity)
 - [mkldnn](https://github.com/intel/mkl-dnn)
 - [armcl](https://github.com/ARM-software/ComputeLibrary)
