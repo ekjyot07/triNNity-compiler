@@ -20,7 +20,7 @@ class InfoNode(object):
         self.kwargs = kwargs
         # The source Caffe node
         self.node = None
-        # The constraints
+        # The default constraints
         self.constraints = ('chw', '*', 'chw')
 
         if (op == 'conv'):
