@@ -508,8 +508,16 @@ class TrinnityTransformer(object):
         ]
         self.graph = graph.transformed(transformers)
         self.data_size = 1
-        for x in self.graph.get_node('data').output_shape:
+        self.labels = 1
+
+        topsorted_graph = self.graph.topologically_sorted()
+        for x in topsorted_graph[0].output_shape:
             self.data_size *= x
+
+        for x in topsorted_graph[-1].output_shape:
+            self.labels *= x
+
+        self.output_node_name = topsorted_graph[-1].name
 
         # Display the graph
         if self.verbose:
