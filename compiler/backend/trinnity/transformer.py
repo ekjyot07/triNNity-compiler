@@ -21,6 +21,7 @@ class TrinnityNode(object):
         self.node = None
         # The name/decl of the input buffer
         self.input_buffer = None
+        self.input_buffers = None
         self.input_buffer_name = None
         # The name/decl of the weights buffer
         self.weights_buffer = None
@@ -198,15 +199,9 @@ class TrinnityNode(object):
 
             # Set up input buffers
             self.input_buffers = []
-            if (self.op not in self.magic_layers):
-                if (self.input_buffer_name is None):
-                    parents = self.node.get_all_parents()
-                    for n in parents:
-                      self.input_buffers.append(n.name + '.output')
-            else:
-                self.input_buffer_name = self.node.name + '_input'
-                self.input_buffer = 'ACTIVATION_TYPE' + ' * ' + self.input_buffer_name + ';'
-                decls += [(self.input_buffer_name, self.input_buffer, 'ACTIVATION_TYPE', str(int(args[0])*int(args[1])*int(args[2])))]
+            parents = self.node.get_all_parents()
+            for n in parents:
+              self.input_buffers.append(n.name + '.output')
 
             args = ', '.join(['ACTIVATION_TYPE'] + args)
 
@@ -230,16 +225,11 @@ class TrinnityNode(object):
             self.op = 'triNNity::layer::EltwiseLayer'
             self.elt_op = 'triNNity::ELTWISE_MUL'
 
-            # Set up input buffer
-            if (self.op not in self.magic_layers):
-                if (self.input_buffer_name is None):
-                    papa = self.node.get_only_parent()
-                    self.input_buffer_name = papa.name + '.output'
-                    self.input_buffer = ''
-            else:
-                self.input_buffer_name = self.node.name + '_input'
-                self.input_buffer = 'ACTIVATION_TYPE' + ' * ' + self.input_buffer_name + ';'
-                decls += [(self.input_buffer_name, self.input_buffer, 'ACTIVATION_TYPE', str(int(args[0])*int(args[1])*int(args[2])))]
+            # Set up input buffers
+            self.input_buffers = []
+            parents = self.node.get_all_parents()
+            for n in parents:
+              self.input_buffers.append(n.name + '.output')
 
             args = ', '.join(['ACTIVATION_TYPE'] + args)
 
@@ -247,16 +237,11 @@ class TrinnityNode(object):
             self.op = 'triNNity::layer::EltwiseLayer'
             self.elt_op = 'triNNity::ELTWISE_ADD'
 
-            # Set up input buffer
-            if (self.op not in self.magic_layers):
-                if (self.input_buffer_name is None):
-                    papa = self.node.get_only_parent()
-                    self.input_buffer_name = papa.name + '.output'
-                    self.input_buffer = ''
-            else:
-                self.input_buffer_name = self.node.name + '_input'
-                self.input_buffer = 'ACTIVATION_TYPE' + ' * ' + self.input_buffer_name + ';'
-                decls += [(self.input_buffer_name, self.input_buffer, 'ACTIVATION_TYPE', str(int(args[0])*int(args[1])*int(args[2])))]
+            # Set up input buffers
+            self.input_buffers = []
+            parents = self.node.get_all_parents()
+            for n in parents:
+              self.input_buffers.append(n.name + '.output')
 
             args = ', '.join(['ACTIVATION_TYPE'] + args)
 
@@ -264,16 +249,11 @@ class TrinnityNode(object):
             self.op = 'triNNity::layer::EltwiseLayer'
             self.elt_op = 'triNNity::ELTWISE_MAX'
 
-            # Set up input buffer
-            if (self.op not in self.magic_layers):
-                if (self.input_buffer_name is None):
-                    papa = self.node.get_only_parent()
-                    self.input_buffer_name = papa.name + '.output'
-                    self.input_buffer = ''
-            else:
-                self.input_buffer_name = self.node.name + '_input'
-                self.input_buffer = 'ACTIVATION_TYPE' + ' * ' + self.input_buffer_name + ';'
-                decls += [(self.input_buffer_name, self.input_buffer, 'ACTIVATION_TYPE', str(int(args[0])*int(args[1])*int(args[2])))]
+            # Set up input buffers
+            self.input_buffers = []
+            parents = self.node.get_all_parents()
+            for n in parents:
+              self.input_buffers.append(n.name + '.output')
 
             args = ', '.join(['ACTIVATION_TYPE'] + args)
 
@@ -400,17 +380,15 @@ class TrinnityMapper(IRNodeMapper):
 
     def map_concat(self, node):
         axis = [node.parameters.axis]
-        if axis != 1:
+        if axis != [1]:
             raise CompilerError('Found concat node with unsupported join axis: %s' % axis)
-        return TrinnityNode('concat', axis)
+        return TrinnityNode('concat')
 
     def map_dropout(self, node):
         return TrinnityNode('dropout', node.parameters.dropout_ratio)
 
     def map_batch_norm(self, node):
-        scale_offset = len(node.data) == 4
-        kwargs = {} if scale_offset else {'scale_offset': False}
-        return MaybeActivated(node, default=False)('batch_normalization', **kwargs)
+        return MaybeActivated(node, default=False)('batch_normalization')
 
     def map_eltwise(self, node):
         operations = {0: 'multiply', 1: 'add', 2: 'max'}
