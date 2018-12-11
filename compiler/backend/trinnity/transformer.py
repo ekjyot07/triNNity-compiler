@@ -1,3 +1,4 @@
+import math
 import numpy as np
 
 from ...util.errors import CompilerError, print_stderr
@@ -290,6 +291,9 @@ class TrinnityNode(object):
         if self.output_buffer_name:
             dynamic_args += [self.output_buffer_name]
 
+        if self.orig_op == 'lrn':
+          dynamic_args += ['0', str(self.kwargs['size']), str(self.kwargs['alpha']), str(self.kwargs['beta'])]
+
         outputs = []
         if (self.orig_op not in self.magic_layers):
             outputs += [self.op + '<' + args + '>' + ' ' + self.node.name + '(' + ', '.join(dynamic_args) + ');']
@@ -328,8 +332,8 @@ class TrinnityMapper(IRNodeMapper):
         c_i = node.parents[0].output_shape[1]
         h_i = node.parents[0].output_shape[2]
         w_i = node.parents[0].output_shape[3]
-        h_o = int(h_i / s_h)
-        w_o = int(w_i / s_w)
+        h_o = int(math.ceil(h_i / s_h))
+        w_o = int(math.ceil(w_i / s_w))
         group = node.parameters.group
         if group != 1:
             kwargs['group'] = group
@@ -355,8 +359,8 @@ class TrinnityMapper(IRNodeMapper):
         c_i = node.parents[0].output_shape[1]
         h_i = node.parents[0].output_shape[2]
         w_i = node.parents[0].output_shape[3]
-        h_o = int(h_i / s_h)
-        w_o = int(w_i / s_w)
+        h_o = int(math.ceil(h_i / s_h))
+        w_o = int(math.ceil(w_i / s_w))
 
         if pool_type == 0:
             pool_op = 'max_pool'
@@ -381,15 +385,13 @@ class TrinnityMapper(IRNodeMapper):
     def map_lrn(self, node):
         params = node.parameters
         assert params.local_size % 2 == 1
-        # Caffe scales by (alpha/(2*n+1))
-        alpha = params.alpha / float(params.local_size)
         c_i = node.parents[0].output_shape[1]
         h_i = node.parents[0].output_shape[2]
         w_i = node.parents[0].output_shape[3]
         kwargs = {}
-        kwargs['alpha'] = alpha
+        kwargs['alpha'] = params.alpha
         kwargs['beta'] = params.beta
-        kwargs['size'] = int(params.local_size / 2)
+        kwargs['size'] = params.local_size
         return TrinnityNode('lrn', c_i, w_i, h_i, 'triNNity::layout::CHW', **kwargs)
 
     def map_concat(self, node):
