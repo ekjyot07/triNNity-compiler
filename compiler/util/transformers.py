@@ -9,7 +9,7 @@ import numpy as np
 from .caffe import get_caffe_resolver, has_pycaffe
 from .errors import CompilerError, print_stderr
 from ..frontend.layers import LayerKind
-
+from ..frontend.graph import IRNode
 
 class DataInjector(object):
     '''
@@ -147,6 +147,72 @@ class DataReshaper(object):
                     # Set the weights
                     list(node.data)[0] = node.reshaped_data
                     del node.reshaped_data
+        return graph
+
+def chunks_of(size, seq):
+    return (seq[pos:pos + size] for pos in range(0, len(seq), size))
+
+class ConcatTreeSplitter(object):
+    '''
+    A helper for splitting concat layers into trees of pairwise concatenations
+    '''
+
+    def __call__(self, graph):
+        new_subgraphs = []
+        for node in graph.nodes:
+            if node.kind == LayerKind.Concat and len(node.parents) > 2:
+                worklist = list(chunks_of(2, node.parents))
+                unique_id = 0
+                finished_nodes = []
+                while len(worklist) > 0:
+                    new_nodes = []
+                    for maybe_pair in worklist:
+                        if len(maybe_pair) == 2:
+                            new_node = IRNode(node.name+'_split_'+str(unique_id), LayerKind.Concat)
+                            new_node.add_parent(maybe_pair[0])
+                            new_node.add_parent(maybe_pair[1])
+                            new_nodes.append(new_node)
+                            unique_id += 1
+                            worklist.remove(maybe_pair)
+
+                    if len(worklist) == 0:
+                        if len(new_nodes) > 1:
+                            # We have more concatenations to do
+                            finished_nodes += new_nodes
+                            worklist = new_nodes
+                        else:
+                            # worklist empty and only one new node
+                            # this node is the new root
+                            root_node = new_nodes[0]
+                            for x in node.children:
+                              x.del_parent(node)
+                              root_node.add_child(x)
+                            finished_nodes.append(root_node)
+                    else:
+                        # We have a leftover node in the worklist
+                        assert(len(worklist) == 1)
+                        if len(new_nodes) > 1:
+                            # We have more concatenations to do
+                            finished_nodes += new_nodes
+                            worklist = new_nodes + worklist[0]
+                        else:
+                            # worklist has one node and we have no new nodes
+                            # this node is the new root
+                            root_node = worklist[0][0]
+                            for x in node.children:
+                              x.del_parent(node)
+                              root_node.add_child(x)
+                            finished_nodes.append(root_node)
+                            worklist = []
+
+                graph.del_node(node)
+                new_subgraphs += finished_nodes
+
+        print_stderr(new_subgraphs)
+
+        for x in new_subgraphs:
+            graph.add_node(x)
+
         return graph
 
 

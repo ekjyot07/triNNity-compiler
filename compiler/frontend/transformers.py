@@ -147,7 +147,6 @@ class DataReshaper(object):
                     del node.reshaped_data
         return graph
 
-
 class SubNodeFuser(object):
     '''
     An abstract helper for merging a single-child with its single-parent.

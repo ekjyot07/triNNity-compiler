@@ -23,11 +23,23 @@ class IRNode(object):
         if self not in parent_node.children:
             parent_node.children.append(self)
 
+    def del_parent(self, parent_node):
+        assert parent_node in self.parents
+        self.parents.remove(parent_node)
+        if self in parent_node.children:
+            parent_node.children.remove(self)
+
     def add_child(self, child_node):
         assert child_node not in self.children
         self.children.append(child_node)
         if self not in child_node.parents:
             child_node.parents.append(self)
+
+    def del_child(self, child_node):
+        assert child_node in self.children
+        self.children.remove(child_node)
+        if self in child_node.parents:
+            child_node.parents.remove(self)
 
     def get_only_parent(self):
         if len(self.parents) != 1:
@@ -66,6 +78,10 @@ class IRGraph(object):
     def add_node(self, node):
         self.nodes.append(node)
         self.node_lut[node.name] = node
+
+    def del_node(self, node):
+        self.nodes.remove(node)
+        self.node_lut.remove(node.name)
 
     def get_node(self, name):
         try:

@@ -4,7 +4,7 @@ import numpy as np
 from ...util.errors import CompilerError, print_stderr
 from ...frontend.graph import IRGraphBuilder, IRNodeMapper
 from ...frontend.layers import LayerKind
-from ...util.transformers import (DataInjector, DataReshaper, NodeRenamer, ReLUFuser, BatchNormScaleBiasFuser, BatchNormPreprocessor, ParameterNamer)
+from ...util.transformers import (DataInjector, DataReshaper, NodeRenamer, ReLUFuser, BatchNormScaleBiasFuser, BatchNormPreprocessor, ParameterNamer, ConcatTreeSplitter)
 
 class TrinnityNode(object):
     '''An intermediate representation for Trinnity operations.'''
@@ -380,9 +380,13 @@ class TrinnityMapper(IRNodeMapper):
 
     def map_concat(self, node):
         axis = [node.parameters.axis]
+        c_i_0 = node.parents[0].output_shape[1]
+        c_i_1 = node.parents[1].output_shape[1]
+        h_i = node.parents[0].output_shape[2]
+        w_i = node.parents[0].output_shape[3]
         if axis != [1]:
             raise CompilerError('Found concat node with unsupported join axis: %s' % axis)
-        return TrinnityNode('concat')
+        return TrinnityNode('concat', c_i_0, c_i_1, w_i, h_i, 'triNNity::layout::CHW')
 
     def map_dropout(self, node):
         return TrinnityNode('dropout', node.parameters.dropout_ratio)
@@ -488,7 +492,10 @@ class TrinnityTransformer(object):
 
             # Rename nodes
             # (Caffe's GoogLeNet implementation uses slashes)
-            NodeRenamer(lambda node: node.name.replace('/', '_'))
+            NodeRenamer(lambda node: node.name.replace('/', '_')),
+
+            # Split concat operations into balanced binary trees
+            ConcatTreeSplitter()
         ]
         self.graph = graph.transformed(transformers)
         self.data_size = 1
