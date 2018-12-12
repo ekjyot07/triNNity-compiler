@@ -498,13 +498,14 @@ class TrinnityTransformer(object):
             ConcatTreeSplitter()
         ]
         self.graph = graph.transformed(transformers)
-        self.data_size = 1
-        self.labels = 1
 
         topsorted_graph = self.graph.topologically_sorted()
+
+        self.data_size = 0
         for x in topsorted_graph[0].output_shape:
             self.data_size *= x
 
+        self.labels = 0
         for x in topsorted_graph[-1].output_shape:
             self.labels *= x
 
@@ -516,6 +517,23 @@ class TrinnityTransformer(object):
 
     def transform_source(self):
         if self.sources is None:
+            # Transform the graph
+            transformers = [
+                # Fuse split batch normalization layers
+                BatchNormScaleBiasFuser(),
+
+                # Fuse ReLUs
+                # TODO: Move non-linearity application to layer wrapper, allowing
+                # any arbitrary operation to be optionally activated.
+                ReLUFuser(allowed_parent_types=[LayerKind.Convolution, LayerKind.InnerProduct,
+                                                LayerKind.BatchNorm]),
+
+                # Rename nodes
+                # (Caffe's GoogLeNet implementation uses slashes)
+                NodeRenamer(lambda node: node.name.replace('/', '_')),
+            ]
+            self.graph = self.graph.transformed(transformers)
+
             mapper = TrinnityMapper(self.graph)
             chains = mapper.map()
             emitter = TrinnityEmitter()

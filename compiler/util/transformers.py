@@ -10,6 +10,7 @@ from .caffe import get_caffe_resolver, has_pycaffe
 from .errors import CompilerError, print_stderr
 from ..frontend.layers import LayerKind
 from ..frontend.graph import IRNode
+from ..frontend.shapes import TensorShape
 
 class DataInjector(object):
     '''
@@ -159,6 +160,7 @@ class ConcatTreeSplitter(object):
 
     def __call__(self, graph):
         new_subgraphs = []
+        kill_nodes = []
         for node in graph.nodes:
             if node.kind == LayerKind.Concat and len(node.parents) > 2:
                 worklist = list(chunks_of(2, node.parents))
@@ -169,17 +171,25 @@ class ConcatTreeSplitter(object):
                     for maybe_pair in worklist:
                         if len(maybe_pair) == 2:
                             new_node = IRNode(node.name+'_split_'+str(unique_id), LayerKind.Concat)
+                            new_node.layer = node.layer
                             new_node.add_parent(maybe_pair[0])
                             new_node.add_parent(maybe_pair[1])
+                            c_in_l = maybe_pair[0].output_shape[1]
+                            c_in_r = maybe_pair[1].output_shape[1]
+                            h_o = maybe_pair[0].output_shape[2]
+                            w_o = maybe_pair[0].output_shape[3]
+                            new_node.output_shape = TensorShape(node.output_shape[0], c_in_l+c_in_r, h_o, w_o)
                             new_nodes.append(new_node)
+                            print_stderr("Inserting new split concat node: " + str(new_node))
                             unique_id += 1
-                            worklist.remove(maybe_pair)
+
+                    worklist = [x for x in worklist if len(x) < 2]
 
                     if len(worklist) == 0:
                         if len(new_nodes) > 1:
                             # We have more concatenations to do
                             finished_nodes += new_nodes
-                            worklist = new_nodes
+                            worklist = list(chunks_of(2, new_nodes))
                         else:
                             # worklist empty and only one new node
                             # this node is the new root
@@ -194,7 +204,7 @@ class ConcatTreeSplitter(object):
                         if len(new_nodes) > 1:
                             # We have more concatenations to do
                             finished_nodes += new_nodes
-                            worklist = new_nodes + worklist[0]
+                            worklist = list(chunks_of(2, new_nodes + worklist[0]))
                         else:
                             # worklist has one node and we have no new nodes
                             # this node is the new root
@@ -205,15 +215,13 @@ class ConcatTreeSplitter(object):
                             finished_nodes.append(root_node)
                             worklist = []
 
-                graph.del_node(node)
+                print_stderr('Removing multiway concat node: ' + str(node))
+                kill_nodes.append(node.name)
+                for x in node.parents:
+                    x.del_child(node)
                 new_subgraphs += finished_nodes
 
-        print_stderr(new_subgraphs)
-
-        for x in new_subgraphs:
-            graph.add_node(x)
-
-        return graph
+        return graph.replaced([n for n in graph.nodes+new_subgraphs if n.name not in kill_nodes])
 
 
 class SubNodeFuser(object):

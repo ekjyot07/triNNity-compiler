@@ -4,7 +4,7 @@ import numpy as np
 from ...util.errors import CompilerError, print_stderr
 from ...frontend.graph import IRGraphBuilder, IRNodeMapper
 from ...frontend.layers import LayerKind
-from ...util.transformers import (DataInjector, DataReshaper, NodeRenamer, ReLUFuser, BatchNormScaleBiasFuser, BatchNormPreprocessor, ParameterNamer)
+from ...util.transformers import (DataInjector, DataReshaper, NodeRenamer, ReLUFuser, BatchNormScaleBiasFuser, BatchNormPreprocessor, ParameterNamer, ConcatTreeSplitter)
 
 magic_layers = ['data', 'label', 'accuracy', 'softmax_loss', 'loss', 'top-1', 'top-5']
 
@@ -169,7 +169,6 @@ class InfoEmitter(object):
       src = edge[0]
       sink = edge[1]
 
-
     def emit(self, name, chains, lookup_nodes):
 
         for chain in chains:
@@ -226,16 +225,14 @@ class InfoTransformer(object):
             BatchNormScaleBiasFuser(),
 
             # Fuse ReLUs
-            # TODO: Move non-linearity application to layer wrapper, allowing
-            # any arbitrary operation to be optionally activated.
             ReLUFuser(allowed_parent_types=[LayerKind.Convolution, LayerKind.InnerProduct,
                                             LayerKind.BatchNorm]),
 
             # Rename nodes
-            # Slashes are used for scoping in Info. Replace slashes
-            # in node names with underscores.
-            # (Caffe's GoogLeNet implementation uses slashes)
-            NodeRenamer(lambda node: node.name.replace('/', '_'))
+            NodeRenamer(lambda node: node.name.replace('/', '_')),
+
+            # Split concat operations into balanced binary trees
+            ConcatTreeSplitter()
         ]
         self.graph = graph.transformed(transformers)
 
@@ -268,12 +265,32 @@ class InfoTransformer(object):
 
     def transform_source(self):
         if self.source is None:
-            mapper = InfoMapper(self.graph)
+            transformers = [
+
+                # Reshape the parameters to Info's ordering
+                DataReshaper({
+                    # (c_o, c_i, h, w) -> (h, w, c_i, c_o)
+                    LayerKind.Convolution: (2, 3, 1, 0),
+
+                    # (c_o, c_i) -> (c_i, c_o)
+                    LayerKind.InnerProduct: (1, 0)
+                }),
+
+                # Pre-process batch normalization data
+                BatchNormPreprocessor(),
+
+                # Convert parameters to dictionaries
+                ParameterNamer(),
+            ]
+            g = self.graph.transformed(transformers)
+
+            mapper = InfoMapper(g)
             chains = mapper.map()
             emitter = InfoEmitter()
-            actual_nodes = [node.name for node in self.graph.nodes if node.name not in magic_layers]
-            toposource_body = emitter.emit(self.graph.name, chains, actual_nodes)
-            self.constraintssource = emitter.emit_constraints(self.graph.name, chains, actual_nodes)
+            print_stderr([node.name for node in g.nodes])
+            actual_nodes = [node.name for node in g.nodes if node.name not in magic_layers]
+            toposource_body = emitter.emit(g.name, chains, actual_nodes)
+            self.constraintssource = emitter.emit_constraints(g.name, chains, actual_nodes)
             self.no_nodes = len(actual_nodes)
             self.no_edges = len(emitter.collected_edges)
             toposource_header = str(self.no_nodes) + ' ' +  str(self.no_params) + ' ' + str(self.no_edges) + '\n\n'

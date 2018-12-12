@@ -570,20 +570,21 @@ def convert_optimizer_info(def_path, caffemodel_path, topo_output_path, layer_ou
     transformer = InfoTransformer(def_path, caffemodel_path, phase=phase)
     print_stderr('Compiling for backend: optimizer info')
 
+    tsrc = transformer.transform_source()
     if topo_output_path:
       print_stderr('Generating topology for model...')
       with open(topo_output_path, 'w') as src_out:
-        src_out.write(transformer.transform_source()[0])
+        src_out.write(tsrc[0])
 
     if layer_output_path:
       print_stderr('Generating layer info for model...')
       with open(layer_output_path, 'w') as src_out:
-        src_out.write(transformer.transform_source()[1])
+        src_out.write(tsrc[1])
 
     if constraints_output_path:
       print_stderr('Generating layer constraint info for model...')
       with open(constraints_output_path, 'w') as src_out:
-        src_out.write(transformer.transform_source()[2])
+        src_out.write(tsrc[2])
 
     print_stderr('Done.')
   except CompilerError as err:
