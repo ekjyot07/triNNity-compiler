@@ -513,7 +513,7 @@ def convert_trinnity(def_path, caffemodel_path, data_output_path, code_output_pa
 
   main_code_preamble_B = '''
     auto t2 = std::chrono::high_resolution_clock::now();
-    times[i] = std::chrono::duration_cast<std::chrono::milliseconds>(t2-t1).count();
+    times[i] = std::chrono::duration_cast<std::chrono::microseconds>(t2-t1).count();
     t1 = t2;
   }
 
