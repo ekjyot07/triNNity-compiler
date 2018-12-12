@@ -195,8 +195,8 @@ class ConcatTreeSplitter(object):
                             # this node is the new root
                             root_node = new_nodes[0]
                             for x in node.children:
-                              x.del_parent(node)
-                              root_node.add_child(x)
+                                x.del_parent(node)
+                                root_node.add_child(x)
                             finished_nodes.append(root_node)
                     else:
                         # We have a leftover node in the worklist
@@ -210,8 +210,8 @@ class ConcatTreeSplitter(object):
                             # this node is the new root
                             root_node = worklist[0][0]
                             for x in node.children:
-                              x.del_parent(node)
-                              root_node.add_child(x)
+                                x.del_parent(node)
+                                root_node.add_child(x)
                             finished_nodes.append(root_node)
                             worklist = []
 

@@ -287,7 +287,6 @@ class InfoTransformer(object):
             mapper = InfoMapper(g)
             chains = mapper.map()
             emitter = InfoEmitter()
-            print_stderr([node.name for node in g.nodes])
             actual_nodes = [node.name for node in g.nodes if node.name not in magic_layers]
             toposource_body = emitter.emit(g.name, chains, actual_nodes)
             self.constraintssource = emitter.emit_constraints(g.name, chains, actual_nodes)
