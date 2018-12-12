@@ -499,6 +499,8 @@ def convert_trinnity(def_path, caffemodel_path, data_output_path, code_output_pa
 #include <triNNity/layer.h>
 #include <triNNity/generic/layer.h>
 #include <triNNity/dense/cpu/layer.h>
+#include <triNNity/wrappers/mkldnn/layer.h>
+#include <triNNity/wrappers/armcl/layer.h>
 
 '''
 

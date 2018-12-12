@@ -501,11 +501,11 @@ class TrinnityTransformer(object):
 
         topsorted_graph = self.graph.topologically_sorted()
 
-        self.data_size = 0
+        self.data_size = 1
         for x in topsorted_graph[0].output_shape:
             self.data_size *= x
 
-        self.labels = 0
+        self.labels = 1
         for x in topsorted_graph[-1].output_shape:
             self.labels *= x
 
