@@ -221,7 +221,9 @@ class ConcatTreeSplitter(object):
                     x.del_child(node)
                 new_subgraphs += finished_nodes
 
-        return graph.replaced([n for n in graph.nodes+new_subgraphs if n.name not in kill_nodes])
+        newGraph = graph.replaced([n for n in graph.nodes+new_subgraphs if n.name not in kill_nodes])
+        newGraph.deadnames += kill_nodes
+        return newGraph
 
 
 class SubNodeFuser(object):
