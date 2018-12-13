@@ -278,6 +278,9 @@ class TrinnityNode(object):
         if self.orig_op == 'lrn':
           dynamic_args += ['0', str(self.kwargs['size']), str(self.kwargs['alpha']), str(self.kwargs['beta'])]
 
+        if self.orig_op == 'batch_normalization':
+          dynamic_args += ['nullptr', 'nullptr', 'nullptr', 'nullptr']
+
         outputs = []
         if (self.orig_op not in self.magic_layers):
             outputs += [self.op + '<' + args + '>' + ' ' + self.node.name + '(' + ', '.join(dynamic_args) + ');']
