@@ -173,13 +173,17 @@ class InfoEmitter(object):
 
         for chain in chains:
             for node in chain:
-                self.emit_node(node)
-                self.collected_edges += [(parent, node.node.name) for parent in self.get_parents(node) if parent not in magic_layers and node.node.name not in magic_layers]
+                if (node.node.name in lookup_nodes):
+                    self.emit_node(node)
+                    self.collected_edges += [(parent, node.node.name) for parent in self.get_parents(node) if parent not in magic_layers and node.node.name not in magic_layers]
 
         def convert_edge(e):
-          e_src = lookup_nodes.index(e[0])
-          e_sink = lookup_nodes.index(e[1])
-          return str(e_src) + ' ' + str(e_sink) + '\n'
+          try:
+              e_src = lookup_nodes.index(e[0])
+              e_sink = lookup_nodes.index(e[1])
+              return str(e_src) + ' ' + str(e_sink) + '\n'
+          except:
+              return ''
 
         s = ''.join(self.collected_allocations)
         s += ''.join(self.collected_nodes)
