@@ -231,7 +231,7 @@ class TrinnityNode(object):
             for n in parents:
               self.input_buffers.append(n.name + '.output')
 
-            args = ', '.join(['ACTIVATION_TYPE'] + args)
+            args = ', '.join(['ACTIVATION_TYPE', self.elt_op] + args)
 
         elif (self.op == 'add'):
             self.op = 'triNNity::layer::EltwiseLayer'
@@ -243,7 +243,7 @@ class TrinnityNode(object):
             for n in parents:
               self.input_buffers.append(n.name + '.output')
 
-            args = ', '.join(['ACTIVATION_TYPE'] + args)
+            args = ', '.join(['ACTIVATION_TYPE', self.elt_op] + args)
 
         elif (self.op == 'max'):
             self.op = 'triNNity::layer::EltwiseLayer'
@@ -255,7 +255,7 @@ class TrinnityNode(object):
             for n in parents:
               self.input_buffers.append(n.name + '.output')
 
-            args = ', '.join(['ACTIVATION_TYPE'] + args)
+            args = ', '.join(['ACTIVATION_TYPE', self.elt_op] + args)
 
         else:
             if (self.op not in self.magic_layers):
@@ -392,13 +392,19 @@ class TrinnityMapper(IRNodeMapper):
         return TrinnityNode('dropout', node.parameters.dropout_ratio)
 
     def map_batch_norm(self, node):
-        return MaybeActivated(node, default=False)('batch_normalization')
+        c_i = node.parents[0].output_shape[1]
+        h_i = node.parents[0].output_shape[2]
+        w_i = node.parents[0].output_shape[3]
+        return MaybeActivated(node, default=False)('batch_normalization', c_i, w_i, h_i, 'triNNity::layout::CHW')
 
     def map_eltwise(self, node):
         operations = {0: 'multiply', 1: 'add', 2: 'max'}
         op_code = node.parameters.operation
+        elt_count = 1
+        for x in node.output_shape:
+            elt_count *= x
         try:
-            return TrinnityNode(operations[op_code])
+            return TrinnityNode(operations[op_code], elt_count)
         except KeyError:
             raise CompilerError('Unknown elementwise operation: {}'.format(op_code))
 

@@ -244,45 +244,9 @@ class InfoTransformer(object):
         if self.verbose:
             print_stderr(self.graph)
 
-    def transform_data(self):
-        if self.params is None:
-            transformers = [
-
-                # Reshape the parameters to Info's ordering
-                DataReshaper({
-                    # (c_o, c_i, h, w) -> (h, w, c_i, c_o)
-                    LayerKind.Convolution: (2, 3, 1, 0),
-
-                    # (c_o, c_i) -> (c_i, c_o)
-                    LayerKind.InnerProduct: (1, 0)
-                }),
-
-                # Pre-process batch normalization data
-                BatchNormPreprocessor(),
-
-                # Convert parameters to dictionaries
-                ParameterNamer(),
-            ]
-            self.graph = self.graph.transformed(transformers)
-            self.params = {node.name: node.data for node in self.graph.nodes if node.data}
-        return self.params
-
     def transform_source(self):
         if self.source is None:
             transformers = [
-
-                # Reshape the parameters to Info's ordering
-                DataReshaper({
-                    # (c_o, c_i, h, w) -> (h, w, c_i, c_o)
-                    LayerKind.Convolution: (2, 3, 1, 0),
-
-                    # (c_o, c_i) -> (c_i, c_o)
-                    LayerKind.InnerProduct: (1, 0)
-                }),
-
-                # Pre-process batch normalization data
-                BatchNormPreprocessor(),
-
                 # Convert parameters to dictionaries
                 ParameterNamer(),
             ]
