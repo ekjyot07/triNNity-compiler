@@ -71,6 +71,7 @@ class IRGraph(object):
         self.nodes = nodes or []
         self.node_lut = {node.name: node for node in self.nodes}
         self.name = name
+        self.deadnames = []
 
         # 'label' is an implicit output node in Caffe
         self.node_lut['label'] = IRNode('label', 'Label')
@@ -82,6 +83,7 @@ class IRGraph(object):
     def del_node(self, node):
         del self.nodes[self.nodes.index(node)]
         self.node_lut.pop(node.name, None)
+        self.deadnames.append(node.name)
 
     def get_node(self, name):
         try:
@@ -97,7 +99,7 @@ class IRGraph(object):
 
     def topologically_sorted(self):
         sorted_nodes = []
-        unsorted_nodes = list(self.nodes)
+        unsorted_nodes = [x for x in list(self.nodes) if x.name not in self.deadnames]
         temp_marked = set()
         perm_marked = set()
 
