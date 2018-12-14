@@ -543,8 +543,8 @@ class TrinnityTransformer(object):
             ]
             self.graph = self.graph.transformed(transformers)
 
-            mapper = TrinnityMapper(self.graph)
-            chains = mapper.map()
+            mapper = TrinnityMapper()
+            chains = mapper.map(self.graph)
             emitter = TrinnityEmitter()
             self.sources = emitter.emit(self.graph.name, chains)
             self.declarations = emitter.collected_declarations

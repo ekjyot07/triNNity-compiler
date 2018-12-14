@@ -281,13 +281,10 @@ class IRGraphBuilder(object):
 
 class IRNodeMapper(LayerDispatch):
 
-    def __init__(self, graph):
-        self.graph = graph
-
-    def map(self):
-        nodes = self.graph.topologically_sorted()
+    def map(self, graph):
+        nodes = graph.topologically_sorted()
         # Remove input nodes - we'll handle them separately.
-        input_nodes = self.graph.get_input_nodes()
+        input_nodes = graph.get_input_nodes()
         nodes = [t for t in nodes if t not in input_nodes]
         # Decompose DAG into chains.
         chains = []

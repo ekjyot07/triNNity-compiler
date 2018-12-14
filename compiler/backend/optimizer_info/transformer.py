@@ -252,8 +252,8 @@ class InfoTransformer(object):
             ]
             g = self.graph.transformed(transformers)
 
-            mapper = InfoMapper(g)
-            chains = mapper.map()
+            mapper = InfoMapper()
+            chains = mapper.map(g)
             emitter = InfoEmitter()
             actual_nodes = [node.name for node in g.nodes if node.name not in magic_layers]
             toposource_body = emitter.emit(g.name, chains, actual_nodes)

@@ -271,8 +271,8 @@ class TensorFlowTransformer(object):
 
     def transform_source(self):
         if self.source is None:
-            mapper = TensorFlowMapper(self.graph)
-            chains = mapper.map()
+            mapper = TensorFlowMapper()
+            chains = mapper.map(self.graph)
             emitter = TensorFlowEmitter()
             self.source = emitter.emit(self.graph.name, chains)
         return [self.source]
