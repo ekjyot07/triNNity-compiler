@@ -717,7 +717,7 @@ private:
         src_out.write(preamble.format(network=transformer.graph.name,
                                       mean_r="122.68f", mean_g="116.67f", mean_b="104.01f",
                                       W="{}U".format(in_W), H="{}U".format(in_H),
-                                      C="{}U".format(in_C), N="{}U".format(in_N))
+                                      C="{}U".format(in_C), N="{}U".format(in_N)))
         src_out.write('\n')
         src_out.write(tsrc[0])
         src_out.write('\n')
