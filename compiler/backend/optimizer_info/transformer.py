@@ -104,34 +104,133 @@ class InfoMapper(IRNodeMapper):
         return MaybeActivated(node)('conv', c_i, w_i, h_i, k_w, s_w, s_h, c_o, w_o, h_o, **kwargs)
 
     def map_relu(self, node):
-        return InfoNode('relu', 0, 0, 0, 0, 0, 0, 0, 0, 0)
+        kernel_params = node.layer.kernel_parameters
+        k_h = kernel_params.kernel_h or 0
+        k_w = kernel_params.kernel_w or 0
+        s_h = kernel_params.stride_h or 1
+        s_w = kernel_params.stride_w or 1
+        c_i = node.parents[0].output_shape[1]
+        h_i = node.parents[0].output_shape[2]
+        w_i = node.parents[0].output_shape[3]
+        c_o = node.output_shape[1]
+        h_o = int(math.ceil(h_i / s_h))
+        w_o = int(math.ceil(w_i / s_w))
+        return InfoNode('relu', c_i, w_i, h_i, k_w, s_w, s_h, c_o, w_o, h_o)
 
     def map_pooling(self, node):
-        return InfoNode('pooling', 0, 0, 0, 0, 0, 0, 0, 0, 0)
+        kernel_params = node.layer.kernel_parameters
+        k_h = kernel_params.kernel_h or 0
+        k_w = kernel_params.kernel_w or 0
+        s_h = kernel_params.stride_h or 1
+        s_w = kernel_params.stride_w or 1
+        c_i = node.parents[0].output_shape[1]
+        h_i = node.parents[0].output_shape[2]
+        w_i = node.parents[0].output_shape[3]
+        c_o = node.output_shape[1]
+        h_o = int(math.ceil(h_i / s_h))
+        w_o = int(math.ceil(w_i / s_w))
+        return InfoNode('pooling', c_i, w_i, h_i, k_w, s_w, s_h, c_o, w_o, h_o)
 
     def map_inner_product(self, node):
-        return MaybeActivated(node)('fc', 0, 0, 0, 0, 0, 0, 0, 0, 0)
+        kernel_params = node.layer.kernel_parameters
+        k_h = kernel_params.kernel_h or 0
+        k_w = kernel_params.kernel_w or 0
+        s_h = kernel_params.stride_h or 1
+        s_w = kernel_params.stride_w or 1
+        c_i = node.parents[0].output_shape[1]
+        h_i = node.parents[0].output_shape[2]
+        w_i = node.parents[0].output_shape[3]
+        c_o = node.output_shape[1]
+        h_o = int(math.ceil(h_i / s_h))
+        w_o = int(math.ceil(w_i / s_w))
+        return MaybeActivated(node)('fc', c_i, w_i, h_i, k_w, s_w, s_h, c_o, w_o, h_o)
 
     def map_softmax(self, node):
-        return InfoNode('softmax', 0, 0, 0, 0, 0, 0, 0, 0, 0)
+        kernel_params = node.layer.kernel_parameters
+        k_h = kernel_params.kernel_h or 0
+        k_w = kernel_params.kernel_w or 0
+        s_h = kernel_params.stride_h or 1
+        s_w = kernel_params.stride_w or 1
+        c_i = node.parents[0].output_shape[1]
+        h_i = node.parents[0].output_shape[2]
+        w_i = node.parents[0].output_shape[3]
+        c_o = node.output_shape[1]
+        h_o = int(math.ceil(h_i / s_h))
+        w_o = int(math.ceil(w_i / s_w))
+        return InfoNode('softmax', c_i, w_i, h_i, k_w, s_w, s_h, c_o, w_o, h_o)
 
     def map_lrn(self, node):
-        return InfoNode('lrn', 0, 0, 0, 0, 0, 0, 0, 0, 0)
+        kernel_params = node.layer.kernel_parameters
+        k_h = kernel_params.kernel_h or 0
+        k_w = kernel_params.kernel_w or 0
+        s_h = kernel_params.stride_h or 1
+        s_w = kernel_params.stride_w or 1
+        c_i = node.parents[0].output_shape[1]
+        h_i = node.parents[0].output_shape[2]
+        w_i = node.parents[0].output_shape[3]
+        c_o = node.output_shape[1]
+        h_o = int(math.ceil(h_i / s_h))
+        w_o = int(math.ceil(w_i / s_w))
+        return InfoNode('lrn', c_i, w_i, h_i, k_w, s_w, s_h, c_o, w_o, h_o)
 
     def map_concat(self, node):
-        return InfoNode('concat', 0, 0, 0, 0, 0, 0, 0, 0, 0)
+        kernel_params = node.layer.kernel_parameters
+        k_h = kernel_params.kernel_h or 0
+        k_w = kernel_params.kernel_w or 0
+        s_h = kernel_params.stride_h or 1
+        s_w = kernel_params.stride_w or 1
+        c_i = node.parents[0].output_shape[1]
+        h_i = node.parents[0].output_shape[2]
+        w_i = node.parents[0].output_shape[3]
+        c_o = node.output_shape[1]
+        h_o = int(math.ceil(h_i / s_h))
+        w_o = int(math.ceil(w_i / s_w))
+        return InfoNode('concat', c_i, w_i, h_i, k_w, s_w, s_h, c_o, w_o, h_o)
 
     def map_dropout(self, node):
-        return InfoNode('dropout', 0, 0, 0, 0, 0, 0, 0, 0, 0)
+        kernel_params = node.layer.kernel_parameters
+        k_h = kernel_params.kernel_h or 0
+        k_w = kernel_params.kernel_w or 0
+        s_h = kernel_params.stride_h or 1
+        s_w = kernel_params.stride_w or 1
+        c_i = node.parents[0].output_shape[1]
+        h_i = node.parents[0].output_shape[2]
+        w_i = node.parents[0].output_shape[3]
+        c_o = node.output_shape[1]
+        h_o = int(math.ceil(h_i / s_h))
+        w_o = int(math.ceil(w_i / s_w))
+        return InfoNode('dropout', c_i, w_i, h_i, k_w, s_w, s_h, c_o, w_o, h_o)
 
     def map_batch_norm(self, node):
-        return MaybeActivated(node)('batch_normalization', 0, 0, 0, 0, 0, 0, 0, 0, 0)
+        kernel_params = node.layer.kernel_parameters
+        k_h = kernel_params.kernel_h or 0
+        k_w = kernel_params.kernel_w or 0
+        s_h = kernel_params.stride_h or 1
+        s_w = kernel_params.stride_w or 1
+        c_i = node.parents[0].output_shape[1]
+        h_i = node.parents[0].output_shape[2]
+        w_i = node.parents[0].output_shape[3]
+        c_o = node.output_shape[1]
+        h_o = int(math.ceil(h_i / s_h))
+        w_o = int(math.ceil(w_i / s_w))
+        return MaybeActivated(node)('batch_normalization', c_i, w_i, h_i, k_w, s_w, s_h, c_o, w_o, h_o)
 
     def map_eltwise(self, node):
+        kernel_params = node.layer.kernel_parameters
+        k_h = kernel_params.kernel_h or 0
+        k_w = kernel_params.kernel_w or 0
+        s_h = kernel_params.stride_h or 1
+        s_w = kernel_params.stride_w or 1
+        c_i = node.parents[0].output_shape[1]
+        h_i = node.parents[0].output_shape[2]
+        w_i = node.parents[0].output_shape[3]
+        c_o = node.output_shape[1]
+        h_o = int(math.ceil(h_i / s_h))
+        w_o = int(math.ceil(w_i / s_w))
         operations = {0: 'multiply', 1: 'add', 2: 'max'}
         op_code = node.parameters.operation
         try:
-            return InfoNode(operations[op_code], 0, 0, 0, 0, 0, 0, 0, 0, 0)
+            return InfoNode(operations[op_code], c_i, w_i, h_i, k_w, s_w, s_h, c_o, w_o, h_o)
         except KeyError:
             raise CompilerError('Unknown elementwise operation: {}'.format(op_code))
 
