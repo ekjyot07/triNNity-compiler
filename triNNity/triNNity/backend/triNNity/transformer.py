@@ -283,7 +283,7 @@ class TrinnityNode(object):
 
         outputs = []
         if (self.orig_op not in self.magic_layers):
-            outputs += [self.op + '<' + args + '>' + ' ' + self.node.name + '= new ' + self.op + '<' + args + '>' + '(' + ', '.join(dynamic_args) + ');']
+            outputs += [self.op + '<' + args + '>' + ' *' + self.node.name + '= new ' + self.op + '<' + args + '>' + '(' + ', '.join(dynamic_args) + ');']
 
         return (decls, outputs)
 
