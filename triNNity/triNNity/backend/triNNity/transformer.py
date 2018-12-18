@@ -283,7 +283,7 @@ class TrinnityNode(object):
 
         outputs = []
         if (self.orig_op not in self.magic_layers):
-            outputs += [self.op + '<' + args + '>' + ' ' + self.node.name + '(' + ', '.join(dynamic_args) + ');']
+            outputs += [self.op + '<' + args + '>' + ' ' + self.node.name + '= new ' + self.op + '<' + args + '>' + '(' + ', '.join(dynamic_args) + ');']
 
         return (decls, outputs)
 
@@ -446,7 +446,7 @@ class TrinnityEmitter(object):
         (decls, code) = node.emit()
         self.collected_declarations += decls
         self.collected_code += list(map(lambda x: self.statement(str(x)), code))
-        self.collected_layers += [node.node.name + ".execute();"]
+        self.collected_layers += [node.node.name + "->execute();"]
 
     def emit(self, name, chains):
         i = self.emit_imports(name)
