@@ -104,11 +104,9 @@ class InfoMapper(IRNodeMapper):
         return MaybeActivated(node)('conv', c_i, w_i, h_i, k_w, s_w, s_h, c_o, w_o, h_o, **kwargs)
 
     def map_relu(self, node):
-        kernel_params = node.layer.kernel_parameters
-        k_h = kernel_params.kernel_h or 0
-        k_w = kernel_params.kernel_w or 0
-        s_h = kernel_params.stride_h or 1
-        s_w = kernel_params.stride_w or 1
+        k_w =  0
+        s_h =  1
+        s_w =  1
         c_i = node.parents[0].output_shape[1]
         h_i = node.parents[0].output_shape[2]
         w_i = node.parents[0].output_shape[3]
@@ -132,11 +130,9 @@ class InfoMapper(IRNodeMapper):
         return InfoNode('pooling', c_i, w_i, h_i, k_w, s_w, s_h, c_o, w_o, h_o)
 
     def map_inner_product(self, node):
-        kernel_params = node.layer.kernel_parameters
-        k_h = kernel_params.kernel_h or 0
-        k_w = kernel_params.kernel_w or 0
-        s_h = kernel_params.stride_h or 1
-        s_w = kernel_params.stride_w or 1
+        k_w =  0
+        s_h =  1
+        s_w =  1
         c_i = node.parents[0].output_shape[1]
         h_i = node.parents[0].output_shape[2]
         w_i = node.parents[0].output_shape[3]
@@ -146,11 +142,9 @@ class InfoMapper(IRNodeMapper):
         return MaybeActivated(node)('fc', c_i, w_i, h_i, k_w, s_w, s_h, c_o, w_o, h_o)
 
     def map_softmax(self, node):
-        kernel_params = node.layer.kernel_parameters
-        k_h = kernel_params.kernel_h or 0
-        k_w = kernel_params.kernel_w or 0
-        s_h = kernel_params.stride_h or 1
-        s_w = kernel_params.stride_w or 1
+        k_w =  0
+        s_h =  1
+        s_w =  1
         c_i = node.parents[0].output_shape[1]
         h_i = node.parents[0].output_shape[2]
         w_i = node.parents[0].output_shape[3]
@@ -160,11 +154,9 @@ class InfoMapper(IRNodeMapper):
         return InfoNode('softmax', c_i, w_i, h_i, k_w, s_w, s_h, c_o, w_o, h_o)
 
     def map_lrn(self, node):
-        kernel_params = node.layer.kernel_parameters
-        k_h = kernel_params.kernel_h or 0
-        k_w = kernel_params.kernel_w or 0
-        s_h = kernel_params.stride_h or 1
-        s_w = kernel_params.stride_w or 1
+        k_w =  0
+        s_h =  1
+        s_w =  1
         c_i = node.parents[0].output_shape[1]
         h_i = node.parents[0].output_shape[2]
         w_i = node.parents[0].output_shape[3]
@@ -174,11 +166,9 @@ class InfoMapper(IRNodeMapper):
         return InfoNode('lrn', c_i, w_i, h_i, k_w, s_w, s_h, c_o, w_o, h_o)
 
     def map_concat(self, node):
-        kernel_params = node.layer.kernel_parameters
-        k_h = kernel_params.kernel_h or 0
-        k_w = kernel_params.kernel_w or 0
-        s_h = kernel_params.stride_h or 1
-        s_w = kernel_params.stride_w or 1
+        k_w =  0
+        s_h =  1
+        s_w =  1
         c_i = node.parents[0].output_shape[1]
         h_i = node.parents[0].output_shape[2]
         w_i = node.parents[0].output_shape[3]
@@ -188,11 +178,9 @@ class InfoMapper(IRNodeMapper):
         return InfoNode('concat', c_i, w_i, h_i, k_w, s_w, s_h, c_o, w_o, h_o)
 
     def map_dropout(self, node):
-        kernel_params = node.layer.kernel_parameters
-        k_h = kernel_params.kernel_h or 0
-        k_w = kernel_params.kernel_w or 0
-        s_h = kernel_params.stride_h or 1
-        s_w = kernel_params.stride_w or 1
+        k_w =  0
+        s_h =  1
+        s_w =  1
         c_i = node.parents[0].output_shape[1]
         h_i = node.parents[0].output_shape[2]
         w_i = node.parents[0].output_shape[3]
@@ -202,11 +190,9 @@ class InfoMapper(IRNodeMapper):
         return InfoNode('dropout', c_i, w_i, h_i, k_w, s_w, s_h, c_o, w_o, h_o)
 
     def map_batch_norm(self, node):
-        kernel_params = node.layer.kernel_parameters
-        k_h = kernel_params.kernel_h or 0
-        k_w = kernel_params.kernel_w or 0
-        s_h = kernel_params.stride_h or 1
-        s_w = kernel_params.stride_w or 1
+        k_w =  0
+        s_h =  1
+        s_w =  1
         c_i = node.parents[0].output_shape[1]
         h_i = node.parents[0].output_shape[2]
         w_i = node.parents[0].output_shape[3]
@@ -216,11 +202,9 @@ class InfoMapper(IRNodeMapper):
         return MaybeActivated(node)('batch_normalization', c_i, w_i, h_i, k_w, s_w, s_h, c_o, w_o, h_o)
 
     def map_eltwise(self, node):
-        kernel_params = node.layer.kernel_parameters
-        k_h = kernel_params.kernel_h or 0
-        k_w = kernel_params.kernel_w or 0
-        s_h = kernel_params.stride_h or 1
-        s_w = kernel_params.stride_w or 1
+        k_w =  0
+        s_h =  1
+        s_w =  1
         c_i = node.parents[0].output_shape[1]
         h_i = node.parents[0].output_shape[2]
         w_i = node.parents[0].output_shape[3]
