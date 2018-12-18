@@ -2,7 +2,7 @@ import re
 import numbers
 from collections import namedtuple
 
-from .shapes import *
+from triNNity.frontend.shapes import *
 
 LAYER_DESCRIPTORS = {
 

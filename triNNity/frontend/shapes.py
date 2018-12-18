@@ -1,6 +1,6 @@
 import math
 from collections import namedtuple
-from ..util.errors import CompilerError
+from triNNity.util.errors import CompilerError
 
 def format_tensorshape(self, format_spec):
     return format("{0} {1} {2} {3}".format(*self), format_spec)

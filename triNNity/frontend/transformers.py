@@ -6,9 +6,9 @@ A transformer is a callable that accepts a graph and returns a transformed versi
 
 import numpy as np
 
-from .caffe import get_caffe_resolver, has_pycaffe
-from .util.errors import CompilerError, print_stderr
-from .layers import LayerKind
+from triNNity.caffe import get_caffe_resolver, has_pycaffe
+from triNNity.util.errors import CompilerError, print_stderr
+from triNNity.frontend.layers import LayerKind
 
 
 class DataInjector(object):

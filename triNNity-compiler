@@ -5,7 +5,7 @@ import sys
 import numpy as np
 import argparse
 
-from compiler.frontend import CompilerError, print_stderr
+from triNNity.frontend import CompilerError, print_stderr
 
 backends = ['optimizer-info', 'trinnity', 'tensorflow']
 
@@ -468,7 +468,7 @@ if __name__ == '__main__':
 '''
 
   try:
-    from compiler.backend.tensorflow import TensorFlowTransformer
+    from triNNity.backend.tensorflow import TensorFlowTransformer
     transformer = TensorFlowTransformer(def_path, caffemodel_path, phase=phase)
     print_stderr('Compiling for backend: tensorflow')
 
@@ -528,7 +528,7 @@ def convert_trinnity(def_path, caffemodel_path, data_output_path, code_output_pa
   '''
 
   try:
-    from compiler.backend.trinnity import TrinnityTransformer
+    from triNNity.backend.trinnity import TrinnityTransformer
     transformer = TrinnityTransformer(def_path, caffemodel_path, phase=phase)
     print_stderr('Compiling for backend: triNNity')
 
@@ -568,7 +568,7 @@ def convert_trinnity(def_path, caffemodel_path, data_output_path, code_output_pa
 
 def convert_optimizer_info(def_path, caffemodel_path, topo_output_path, layer_output_path, constraints_output_path, phase):
   try:
-    from compiler.backend.optimizer_info import InfoTransformer
+    from triNNity.backend.optimizer_info import InfoTransformer
     transformer = InfoTransformer(def_path, caffemodel_path, phase=phase)
     print_stderr('Compiling for backend: optimizer info')
 
@@ -699,7 +699,7 @@ private:
   '''
 
   try:
-    from compiler.backend.armcl import ARMCLTransformer
+    from triNNity.backend.armcl import ARMCLTransformer
     transformer = ARMCLTransformer(def_path, caffemodel_path, phase=phase)
     print_stderr('Compiling for backend: ARMCL')
 
@@ -738,7 +738,7 @@ private:
 
 def convert_optimizer_info(def_path, caffemodel_path, topo_output_path, layer_output_path, constraints_output_path, phase):
   try:
-    from compiler.backend.optimizer_info import InfoTransformer
+    from triNNity.backend.optimizer_info import InfoTransformer
     transformer = InfoTransformer(def_path, caffemodel_path, phase=phase)
     print_stderr('Compiling for backend: optimizer info')
 

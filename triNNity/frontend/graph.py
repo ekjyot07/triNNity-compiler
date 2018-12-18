@@ -1,9 +1,9 @@
 from google.protobuf import text_format
 
-from ..util.caffe import get_caffe_resolver
-from ..util.errors import CompilerError, print_stderr
-from .layers import LayerAdapter, LayerType, LayerKind, LayerDispatch
-from .shapes import TensorShape
+from triNNity.util.caffe import get_caffe_resolver
+from triNNity.util.errors import CompilerError, print_stderr
+from triNNity.frontend.layers import LayerAdapter, LayerType, LayerKind, LayerDispatch
+from triNNity.frontend.shapes import TensorShape
 
 class IRNode(object):
 

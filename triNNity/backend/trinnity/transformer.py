@@ -1,16 +1,16 @@
 import math
 import numpy as np
 
-from ...util.errors import CompilerError, print_stderr
-from ...frontend.graph import IRGraphBuilder, IRNodeMapper
-from ...frontend.layers import LayerKind
-from ...util.transformers import (DataInjector, DataReshaper, NodeRenamer, ReLUFuser, BatchNormScaleBiasFuser, BatchNormPreprocessor, ParameterNamer, ConcatTreeSplitter)
+from triNNity.util.errors import CompilerError, print_stderr
+from triNNity.frontend.graph import IRGraphBuilder, IRNodeMapper
+from triNNity.frontend.layers import LayerKind
+from triNNity.util.transformers import (DataInjector, DataReshaper, NodeRenamer, ReLUFuser, BatchNormScaleBiasFuser, BatchNormPreprocessor, ParameterNamer, ConcatTreeSplitter)
 
-class ARMCLNode(object):
-    '''An intermediate representation for ARMCL operations.'''
+class TrinnityNode(object):
+    '''An intermediate representation for Trinnity operations.'''
 
     def __init__(self, op, *args, **kwargs):
-        # A string corresponding to the ARMCL operation
+        # A string corresponding to the Trinnity operation
         self.op = op
         self.orig_op = op
         # Positional arguments for the operation
@@ -299,10 +299,10 @@ class MaybeActivated(object):
 
     def __call__(self, *args, **kwargs):
         kwargs.update(self.inject_kwargs)
-        return ARMCLNode(*args, **kwargs)
+        return TrinnityNode(*args, **kwargs)
 
 
-class ARMCLMapper(IRNodeMapper):
+class TrinnityMapper(IRNodeMapper):
 
     def get_kernel_params(self, node):
         kernel_params = node.layer.kernel_parameters
@@ -333,7 +333,7 @@ class ARMCLMapper(IRNodeMapper):
         c_i = node.parents[0].output_shape[1]
         h_i = node.parents[0].output_shape[2]
         w_i = node.parents[0].output_shape[3]
-        return ARMCLNode('relu', c_i, w_i, h_i, 'triNNity::ACTIVATION_RELU')
+        return TrinnityNode('relu', c_i, w_i, h_i, 'triNNity::ACTIVATION_RELU')
 
     def map_pooling(self, node):
         pool_type = node.parameters.pool
@@ -356,7 +356,7 @@ class ARMCLMapper(IRNodeMapper):
         else:
             raise CompilerError('Unsupported pooling type.')
         kernel_params = self.get_kernel_params(node)
-        return ARMCLNode(pool_op, c_i, w_i, h_i, k_h, s_w, s_h, c_o, w_o, h_o)
+        return TrinnityNode(pool_op, c_i, w_i, h_i, k_h, s_w, s_h, c_o, w_o, h_o)
 
     def map_inner_product(self, node):
         assert node.parameters.axis == 1
@@ -367,7 +367,7 @@ class ARMCLMapper(IRNodeMapper):
         return MaybeActivated(node)('fc', c_i, w_i, h_i, node.parameters.num_output)
 
     def map_softmax(self, node):
-        return ARMCLNode('softmax', node.parents[0].output_shape[1])
+        return TrinnityNode('softmax', node.parents[0].output_shape[1])
 
     def map_lrn(self, node):
         params = node.parameters
@@ -379,7 +379,7 @@ class ARMCLMapper(IRNodeMapper):
         kwargs['alpha'] = params.alpha
         kwargs['beta'] = params.beta
         kwargs['size'] = params.local_size
-        return ARMCLNode('lrn', c_i, w_i, h_i, 'triNNity::layout::CHW', **kwargs)
+        return TrinnityNode('lrn', c_i, w_i, h_i, 'triNNity::layout::CHW', **kwargs)
 
     def map_concat(self, node):
         axis = [node.parameters.axis]
@@ -389,10 +389,10 @@ class ARMCLMapper(IRNodeMapper):
         w_i = node.parents[0].output_shape[3]
         if axis != [1]:
             raise CompilerError('Found concat node with unsupported join axis: %s' % axis)
-        return ARMCLNode('concat', c_i_0, c_i_1, w_i, h_i, 'triNNity::layout::CHW')
+        return TrinnityNode('concat', c_i_0, c_i_1, w_i, h_i, 'triNNity::layout::CHW')
 
     def map_dropout(self, node):
-        return ARMCLNode('dropout', node.parameters.dropout_ratio)
+        return TrinnityNode('dropout', node.parameters.dropout_ratio)
 
     def map_batch_norm(self, node):
         c_i = node.parents[0].output_shape[1]
@@ -407,7 +407,7 @@ class ARMCLMapper(IRNodeMapper):
         for x in node.output_shape:
             elt_count *= x
         try:
-            return ARMCLNode(operations[op_code], elt_count)
+            return TrinnityNode(operations[op_code], elt_count)
         except KeyError:
             raise CompilerError('Unknown elementwise operation: {}'.format(op_code))
 
@@ -415,7 +415,7 @@ class ARMCLMapper(IRNodeMapper):
         return chains
 
 
-class ARMCLEmitter(object):
+class TrinnityEmitter(object):
 
     def __init__(self, tab=None):
         self.tab = tab or ' ' * 2
@@ -471,7 +471,7 @@ class ARMCLEmitter(object):
         return [i, d, c, e]
 
 
-class ARMCLTransformer(object):
+class TrinnityTransformer(object):
 
     def __init__(self, def_path, data_path, verbose=True, phase='test'):
         self.verbose = verbose
@@ -543,9 +543,9 @@ class ARMCLTransformer(object):
             ]
             self.graph = self.graph.transformed(transformers)
 
-            mapper = ARMCLMapper()
+            mapper = TrinnityMapper()
             chains = mapper.map(self.graph)
-            emitter = ARMCLEmitter()
+            emitter = TrinnityEmitter()
             self.sources = emitter.emit(self.graph.name, chains)
             self.declarations = emitter.collected_declarations
         return self.sources

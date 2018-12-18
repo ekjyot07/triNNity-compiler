@@ -1,9 +1,9 @@
 import numpy as np
 
-from ...util.errors import CompilerError, print_stderr
-from ...frontend.graph import IRGraphBuilder, IRNodeMapper
-from ...frontend.layers import LayerKind
-from ...util.transformers import (DataInjector, DataReshaper, NodeRenamer, ReLUFuser, BatchNormScaleBiasFuser, BatchNormPreprocessor, ParameterNamer)
+from triNNity.util.errors import CompilerError, print_stderr
+from triNNity.frontend.graph import IRGraphBuilder, IRNodeMapper
+from triNNity.frontend.layers import LayerKind
+from triNNity.util.transformers import (DataInjector, DataReshaper, NodeRenamer, ReLUFuser, BatchNormScaleBiasFuser, BatchNormPreprocessor, ParameterNamer)
 
 def get_padding_type(kernel_params, input_shape, output_shape):
     '''Translates Caffe's numeric padding to one of ('SAME', 'VALID').
