@@ -27,7 +27,7 @@ def validate_arguments(args):
      (args.constraints_output is None):
     fatal_error('No output paths specified.')
 
-def convert_tensorflow(def_path, caffemodel_path, data_output_path, code_output_path, phase):
+def convert_tensorflow(def_path, caffemodel_path, data_output_path, code_output_path, phase, verbose):
   preamble = '''import argparse
 import numpy as np
 import tensorflow as tf
@@ -469,7 +469,7 @@ if __name__ == '__main__':
 
   try:
     from triNNity.backend.tensorflow import TensorFlowTransformer
-    transformer = TensorFlowTransformer(def_path, caffemodel_path, phase=phase)
+    transformer = TensorFlowTransformer(def_path, caffemodel_path, verbose=verbose, phase=phase)
     print_stderr('Compiling for backend: tensorflow')
 
     if caffemodel_path is not None:
@@ -492,7 +492,7 @@ if __name__ == '__main__':
   except CompilerError as err:
     fatal_error('Error encountered: {}'.format(err))
 
-def convert_trinnity(def_path, caffemodel_path, data_output_path, code_output_path, phase):
+def convert_trinnity(def_path, caffemodel_path, data_output_path, code_output_path, phase, verbose):
   preamble = '''#include <chrono>
 #include <iostream>
 #include <algorithm>
@@ -529,7 +529,7 @@ def convert_trinnity(def_path, caffemodel_path, data_output_path, code_output_pa
 
   try:
     from triNNity.backend.triNNity import TrinnityTransformer
-    transformer = TrinnityTransformer(def_path, caffemodel_path, phase=phase)
+    transformer = TrinnityTransformer(def_path, caffemodel_path, verbose=verbose, phase=phase)
     print_stderr('Compiling for backend: triNNity')
 
     if caffemodel_path is not None:
@@ -566,10 +566,10 @@ def convert_trinnity(def_path, caffemodel_path, data_output_path, code_output_pa
   except CompilerError as err:
     fatal_error('Error encountered: {}'.format(err))
 
-def convert_optimizer_info(def_path, caffemodel_path, topo_output_path, layer_output_path, constraints_output_path, phase):
+def convert_optimizer_info(def_path, caffemodel_path, topo_output_path, layer_output_path, constraints_output_path, phase, verbose):
   try:
     from triNNity.backend.optimizer_info import InfoTransformer
-    transformer = InfoTransformer(def_path, caffemodel_path, phase=phase)
+    transformer = InfoTransformer(def_path, caffemodel_path, verbose=verbose, phase=phase)
     print_stderr('Compiling for backend: optimizer info')
 
     tsrc = transformer.transform_source()
@@ -592,7 +592,7 @@ def convert_optimizer_info(def_path, caffemodel_path, topo_output_path, layer_ou
   except CompilerError as err:
     fatal_error('Error encountered: {}'.format(err))
 
-def convert_armcl(def_path, caffemodel_path, data_output_path, code_output_path, phase):
+def convert_armcl(def_path, caffemodel_path, data_output_path, code_output_path, phase, verbose):
   preamble = '''#include "arm_compute/graph.h"
 #include "support/ToolchainSupport.h"
 #include "utils/CommonGraphOptions.h"
@@ -700,7 +700,7 @@ private:
 
   try:
     from triNNity.backend.armcl import ARMCLTransformer
-    transformer = ARMCLTransformer(def_path, caffemodel_path, phase=phase)
+    transformer = ARMCLTransformer(def_path, caffemodel_path, verbose=verbose, phase=phase)
     print_stderr('Compiling for backend: ARMCL')
 
     if caffemodel_path is not None:
@@ -736,10 +736,10 @@ private:
   except CompilerError as err:
     fatal_error('Error encountered: {}'.format(err))
 
-def convert_optimizer_info(def_path, caffemodel_path, topo_output_path, layer_output_path, constraints_output_path, phase):
+def convert_optimizer_info(def_path, caffemodel_path, topo_output_path, layer_output_path, constraints_output_path, phase, verbose):
   try:
     from triNNity.backend.optimizer_info import InfoTransformer
-    transformer = InfoTransformer(def_path, caffemodel_path, phase=phase)
+    transformer = InfoTransformer(def_path, caffemodel_path, verbose=verbose, phase=phase)
     print_stderr('Compiling for backend: optimizer info')
 
     tsrc = transformer.transform_source()
@@ -776,14 +776,17 @@ def main():
                         '--phase',
                         default='test',
                         help='The phase to convert: test (default) or train')
+    parser.add_argument('-v',
+                        '--verbose',
+                        help='Verbose compilation output')
     args = parser.parse_args()
     validate_arguments(args)
     if (args.backend == 'tensorflow'):
-      convert_tensorflow(args.model, args.weights, args.data_output, args.code_output, args.phase)
+      convert_tensorflow(args.model, args.weights, args.data_output, args.code_output, args.phase, args.verbose)
     elif (args.backend == 'trinnity'):
-      convert_trinnity(args.model, args.weights, args.data_output, args.code_output, args.phase)
+      convert_trinnity(args.model, args.weights, args.data_output, args.code_output, args.phase, args.verbose)
     elif (args.backend == 'optimizer-info'):
-      convert_optimizer_info(args.model, args.weights, args.topology_output, args.layers_output, args.constraints_output, args.phase)
+      convert_optimizer_info(args.model, args.weights, args.topology_output, args.layers_output, args.constraints_output, args.phase, args.verbose)
     else:
       fatal_error('No backend selected')
 
