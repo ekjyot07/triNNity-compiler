@@ -1,4 +1,4 @@
 name = "triNNity"
-from .frontend import *
-from .backend import *
-from .util import *
+from triNNity.frontend import *
+from triNNity.backend import *
+from triNNity.util import *
