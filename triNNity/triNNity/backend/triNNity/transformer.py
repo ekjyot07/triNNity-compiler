@@ -69,7 +69,7 @@ class TrinnityNode(object):
             if (self.op not in self.magic_layers):
                 if (self.input_buffer_name is None):
                     papa = self.node.get_only_parent()
-                    self.input_buffer_name = papa.name + '.output'
+                    self.input_buffer_name = papa.name + '->output'
                     self.input_buffer = ''
             else:
                 self.input_buffer_name = self.node.name + '_input'
@@ -100,7 +100,7 @@ class TrinnityNode(object):
             if (self.op not in self.magic_layers):
                 if (self.input_buffer_name is None):
                     papa = self.node.get_only_parent()
-                    self.input_buffer_name = papa.name + '.output'
+                    self.input_buffer_name = papa.name + '->output'
                     self.input_buffer = ''
             else:
                 self.input_buffer_name = self.node.name + '_input'
@@ -116,7 +116,7 @@ class TrinnityNode(object):
             if (self.op not in self.magic_layers):
                 if (self.input_buffer_name is None):
                     papa = self.node.get_only_parent()
-                    self.input_buffer_name = papa.name + '.output'
+                    self.input_buffer_name = papa.name + '->output'
                     self.input_buffer = ''
             else:
                 self.input_buffer_name = self.node.name + '_input'
@@ -132,7 +132,7 @@ class TrinnityNode(object):
             if (self.op not in self.magic_layers):
                 if (self.input_buffer_name is None):
                     papa = self.node.get_only_parent()
-                    self.input_buffer_name = papa.name + '.output'
+                    self.input_buffer_name = papa.name + '->output'
                     self.input_buffer = ''
             else:
                 self.input_buffer_name = self.node.name + '_input'
@@ -148,7 +148,7 @@ class TrinnityNode(object):
             if (self.op not in self.magic_layers):
                 if (self.input_buffer_name is None):
                     papa = self.node.get_only_parent()
-                    self.input_buffer_name = papa.name + '.output'
+                    self.input_buffer_name = papa.name + '->output'
                     self.input_buffer = ''
             else:
                 self.input_buffer_name = self.node.name + '_input'
@@ -169,7 +169,7 @@ class TrinnityNode(object):
             if (self.op not in self.magic_layers):
                 if (self.input_buffer_name is None):
                     papa = self.node.get_only_parent()
-                    self.input_buffer_name = papa.name + '.output'
+                    self.input_buffer_name = papa.name + '->output'
                     self.input_buffer = ''
             else:
                 self.input_buffer_name = self.node.name + '_input'
@@ -185,7 +185,7 @@ class TrinnityNode(object):
             if (self.op not in self.magic_layers):
                 if (self.input_buffer_name is None):
                     papa = self.node.get_only_parent()
-                    self.input_buffer_name = papa.name + '.output'
+                    self.input_buffer_name = papa.name + '->output'
                     self.input_buffer = ''
             else:
                 self.input_buffer_name = self.node.name + '_input'
@@ -201,7 +201,7 @@ class TrinnityNode(object):
             self.input_buffers = []
             parents = self.node.get_all_parents()
             for n in parents:
-              self.input_buffers.append(n.name + '.output')
+              self.input_buffers.append(n.name + '->output')
 
             args = ', '.join(['ACTIVATION_TYPE'] + args)
 
@@ -212,7 +212,7 @@ class TrinnityNode(object):
             if (self.op not in self.magic_layers):
                 if (self.input_buffer_name is None):
                     papa = self.node.get_only_parent()
-                    self.input_buffer_name = papa.name + '.output'
+                    self.input_buffer_name = papa.name + '->output'
                     self.input_buffer = ''
             else:
                 self.input_buffer_name = self.node.name + '_input'
@@ -229,7 +229,7 @@ class TrinnityNode(object):
             self.input_buffers = []
             parents = self.node.get_all_parents()
             for n in parents:
-              self.input_buffers.append(n.name + '.output')
+              self.input_buffers.append(n.name + '->output')
 
             args = ', '.join(['ACTIVATION_TYPE', self.elt_op] + args)
 
@@ -241,7 +241,7 @@ class TrinnityNode(object):
             self.input_buffers = []
             parents = self.node.get_all_parents()
             for n in parents:
-              self.input_buffers.append(n.name + '.output')
+              self.input_buffers.append(n.name + '->output')
 
             args = ', '.join(['ACTIVATION_TYPE', self.elt_op] + args)
 
@@ -253,7 +253,7 @@ class TrinnityNode(object):
             self.input_buffers = []
             parents = self.node.get_all_parents()
             for n in parents:
-              self.input_buffers.append(n.name + '.output')
+              self.input_buffers.append(n.name + '->output')
 
             args = ', '.join(['ACTIVATION_TYPE', self.elt_op] + args)
 
