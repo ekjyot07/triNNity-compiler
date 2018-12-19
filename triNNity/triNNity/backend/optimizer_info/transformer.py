@@ -332,6 +332,9 @@ class InfoTransformer(object):
             transformers = [
                 # Convert parameters to dictionaries
                 ParameterNamer(),
+
+                # Split concat operations into balanced binary trees
+                ConcatTreeSplitter()
             ]
             g = self.graph.transformed(transformers)
 

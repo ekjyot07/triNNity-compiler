@@ -540,6 +540,9 @@ class TrinnityTransformer(object):
                 # Rename nodes
                 # (Caffe's GoogLeNet implementation uses slashes)
                 NodeRenamer(lambda node: node.name.replace('/', '_')),
+
+                # Split concat operations into balanced binary trees
+                ConcatTreeSplitter()
             ]
             self.graph = self.graph.transformed(transformers)
 
