@@ -337,6 +337,7 @@ class InfoTransformer(object):
                 ConcatTreeSplitter()
             ]
             g = self.graph.transformed(transformers)
+            g = g.topologically_sorted()
 
             mapper = InfoMapper()
             chains = mapper.map(g)
