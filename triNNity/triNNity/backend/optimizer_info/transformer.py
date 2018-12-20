@@ -56,7 +56,7 @@ class InfoNode(object):
 
         outputs = []
         if (self.orig_op not in magic_layers):
-          outputs += [' '.join([c_o, c_i, s_w, w_i, h_i, k, sparsity])]
+          outputs += ['Scenario ' + ' '.join([c_o, c_i, s_w, w_i, h_i, k, sparsity])]
 
         return (edges, outputs)
 
