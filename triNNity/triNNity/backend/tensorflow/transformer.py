@@ -264,7 +264,7 @@ class TensorFlowTransformer(object):
                 ParameterNamer(),
             ]
             self.graph = self.graph.transformed(transformers)
-            self.params = {node.name: node.data for node in self.graph.nodes if node.data}
+            self.params = {node.name: node.data for node in self.graph.topologically_sorted() if node.data}
         else:
             raise CompilerError('expected None for params, got: {}'.format(self.params))
         return self.params
