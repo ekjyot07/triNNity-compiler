@@ -502,6 +502,14 @@ def convert_trinnity(def_path, caffemodel_path, data_output_path, code_output_pa
 #include <triNNity/wrappers/mkldnn/layer.h>
 #include <triNNity/wrappers/armcl/layer.h>
 
+#ifndef GEMM_TYPE
+#define GEMM_TYPE triNNity::GEMM_BLAS
+#endif
+
+#ifndef GEMV_TYPE
+#define GEMV_TYPE triNNity::GEMV_BLAS
+#endif
+
 '''
 
   main_code_preamble_A = '''  unsigned times[NO_OF_RUNS];
