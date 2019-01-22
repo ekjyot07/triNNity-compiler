@@ -91,7 +91,7 @@ class TrinnityNode(object):
             self.output_buffer = 'ACTIVATION_TYPE' + ' * ' + self.output_buffer_name + ';'
             decls += [(self.output_buffer_name, self.output_buffer, 'ACTIVATION_TYPE', str(int(args[6])*int(args[7])*int(args[8])))]
 
-            args = ', '.join(['ACTIVATION_TYPE', 'WEIGHT_TYPE', 'ACTIVATION_TYPE', 'LAYER_'+self.node.name.upper()+'_METHOD', 'triNNity::GEMM_BLAS'] + args + ['LAYER_'+(self.node.name.upper())+'_IN_FMT', 'triNNity::BOUND_IMPLICIT_PAD', act])
+            args = ', '.join(['ACTIVATION_TYPE', 'WEIGHT_TYPE', 'ACTIVATION_TYPE', 'LAYER_'+self.node.name.upper()+'_METHOD', 'GEMM_TYPE'] + args + ['LAYER_'+(self.node.name.upper())+'_IN_FMT', 'triNNity::BOUND_IMPLICIT_PAD', act])
 
         elif (self.op == 'relu'):
             self.op = 'triNNity::layer::ActivationLayer'
@@ -160,7 +160,7 @@ class TrinnityNode(object):
             self.weights_buffer = 'WEIGHT_TYPE' + ' * ' + self.weights_buffer_name + ';'
             decls += [(self.weights_buffer_name, self.weights_buffer, 'WEIGHT_TYPE', str(int(args[0])*int(args[1])*int(args[2])*int(args[3])))]
 
-            args = ', '.join(['ACTIVATION_TYPE', 'WEIGHT_TYPE', 'triNNity::GEMV_BLAS'] + args)
+            args = ', '.join(['ACTIVATION_TYPE', 'WEIGHT_TYPE', 'GEMV_TYPE'] + args)
 
         elif (self.op == 'softmax'):
             self.op = 'triNNity::layer::SoftmaxLayer'
