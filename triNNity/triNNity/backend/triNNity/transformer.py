@@ -524,6 +524,21 @@ class TrinnityTransformer(object):
         if self.verbose:
             print_stderr(self.graph)
 
+    def transform_data(self):
+        if self.params is None:
+            transformers = [
+                # Pre-process batch normalization data
+                BatchNormPreprocessor(),
+
+                # Convert parameters to dictionaries
+                ParameterNamer(),
+            ]
+            self.graph = self.graph.transformed(transformers)
+            self.params = {node.name: node.data for node in self.graph.topologically_sorted() if node.data}
+        else:
+            raise CompilerError('expected None for params, got: {}'.format(self.params))
+        return self.params
+
     def transform_source(self):
         if self.sources is None:
             # Transform the graph
