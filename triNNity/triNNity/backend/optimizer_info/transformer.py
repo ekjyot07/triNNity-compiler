@@ -46,12 +46,13 @@ class InfoNode(object):
         c_i = str(int(self.args[0]))
         h_i = str(int(self.args[1]))
         w_i = str(int(self.args[2]))
-        k =   str(int(self.args[3]))
-        s_w = str(int(self.args[4]))
-        s_h = str(int(self.args[5]))
-        c_o = str(int(self.args[6]))
-        w_o = str(int(self.args[7]))
-        h_o = str(int(self.args[8]))
+        k_w = str(int(self.args[3]))
+        k_h = str(int(self.args[4]))
+        s_w = str(int(self.args[5]))
+        s_h = str(int(self.args[6]))
+        c_o = str(int(self.args[7]))
+        w_o = str(int(self.args[8]))
+        h_o = str(int(self.args[9]))
         sparsity = '0'
 
         outputs = []
@@ -61,7 +62,8 @@ class InfoNode(object):
                                                 'stride = ' + str(s_w),
                                                 'width = ' + str(w_i),
                                                 'height = ' + str(h_i),
-                                                'k = ' + str(k),
+                                                'k_w = ' + str(k_w),
+                                                'k_h = ' + str(k_h),
                                                 'sparsity = ' + str(sparsity)]) + '}']
 
         return (edges, outputs)
@@ -107,7 +109,7 @@ class InfoMapper(IRNodeMapper):
         if not node.parameters.bias_term:
             kwargs['biased'] = False
 
-        return MaybeActivated(node)('conv', c_i, w_i, h_i, k_w, s_w, s_h, c_o, w_o, h_o, **kwargs)
+        return MaybeActivated(node)('conv', c_i, w_i, h_i, k_w, k_h, s_w, s_h, c_o, w_o, h_o, **kwargs)
 
     def map_relu(self, node):
         k_w =  0
@@ -119,7 +121,7 @@ class InfoMapper(IRNodeMapper):
         c_o = node.output_shape[1]
         h_o = int(math.ceil(h_i / s_h))
         w_o = int(math.ceil(w_i / s_w))
-        return InfoNode('relu', c_i, w_i, h_i, k_w, s_w, s_h, c_o, w_o, h_o)
+        return InfoNode('relu', c_i, w_i, h_i, k_w, k_w, s_w, s_h, c_o, w_o, h_o)
 
     def map_pooling(self, node):
         kernel_params = node.layer.kernel_parameters
@@ -133,7 +135,11 @@ class InfoMapper(IRNodeMapper):
         c_o = node.output_shape[1]
         h_o = int(math.ceil(h_i / s_h))
         w_o = int(math.ceil(w_i / s_w))
-        return InfoNode('pooling', c_i, w_i, h_i, k_w, s_w, s_h, c_o, w_o, h_o)
+
+        if (k_h != k_w):
+            raise CompilerError('Unsupported asymmetric pooling operation: {}'.format(op_code))
+
+        return InfoNode('pooling', c_i, w_i, h_i, k_w, k_w, s_w, s_h, c_o, w_o, h_o)
 
     def map_inner_product(self, node):
         k_w =  0
@@ -145,7 +151,7 @@ class InfoMapper(IRNodeMapper):
         c_o = node.output_shape[1]
         h_o = int(math.ceil(h_i / s_h))
         w_o = int(math.ceil(w_i / s_w))
-        return MaybeActivated(node)('fc', c_i, w_i, h_i, k_w, s_w, s_h, c_o, w_o, h_o)
+        return MaybeActivated(node)('fc', c_i, w_i, h_i, k_w, k_w, s_w, s_h, c_o, w_o, h_o)
 
     def map_softmax(self, node):
         k_w =  0
@@ -157,7 +163,7 @@ class InfoMapper(IRNodeMapper):
         c_o = node.output_shape[1]
         h_o = int(math.ceil(h_i / s_h))
         w_o = int(math.ceil(w_i / s_w))
-        return InfoNode('softmax', c_i, w_i, h_i, k_w, s_w, s_h, c_o, w_o, h_o)
+        return InfoNode('softmax', c_i, w_i, h_i, k_w, k_w, s_w, s_h, c_o, w_o, h_o)
 
     def map_lrn(self, node):
         k_w =  0
@@ -169,7 +175,7 @@ class InfoMapper(IRNodeMapper):
         c_o = node.output_shape[1]
         h_o = int(math.ceil(h_i / s_h))
         w_o = int(math.ceil(w_i / s_w))
-        return InfoNode('lrn', c_i, w_i, h_i, k_w, s_w, s_h, c_o, w_o, h_o)
+        return InfoNode('lrn', c_i, w_i, h_i, k_w, k_w, s_w, s_h, c_o, w_o, h_o)
 
     def map_concat(self, node):
         k_w =  0
@@ -181,7 +187,7 @@ class InfoMapper(IRNodeMapper):
         c_o = node.output_shape[1]
         h_o = int(math.ceil(h_i / s_h))
         w_o = int(math.ceil(w_i / s_w))
-        return InfoNode('concat', c_i, w_i, h_i, k_w, s_w, s_h, c_o, w_o, h_o)
+        return InfoNode('concat', c_i, w_i, h_i, k_w, k_w, s_w, s_h, c_o, w_o, h_o)
 
     def map_dropout(self, node):
         k_w =  0
@@ -193,7 +199,7 @@ class InfoMapper(IRNodeMapper):
         c_o = node.output_shape[1]
         h_o = int(math.ceil(h_i / s_h))
         w_o = int(math.ceil(w_i / s_w))
-        return InfoNode('dropout', c_i, w_i, h_i, k_w, s_w, s_h, c_o, w_o, h_o)
+        return InfoNode('dropout', c_i, w_i, h_i, k_w, k_w, s_w, s_h, c_o, w_o, h_o)
 
     def map_batch_norm(self, node):
         k_w =  0
@@ -205,7 +211,7 @@ class InfoMapper(IRNodeMapper):
         c_o = node.output_shape[1]
         h_o = int(math.ceil(h_i / s_h))
         w_o = int(math.ceil(w_i / s_w))
-        return MaybeActivated(node)('batch_normalization', c_i, w_i, h_i, k_w, s_w, s_h, c_o, w_o, h_o)
+        return MaybeActivated(node)('batch_normalization', c_i, w_i, h_i, k_w, k_w, s_w, s_h, c_o, w_o, h_o)
 
     def map_eltwise(self, node):
         k_w =  0
@@ -220,7 +226,7 @@ class InfoMapper(IRNodeMapper):
         operations = {0: 'multiply', 1: 'add', 2: 'max'}
         op_code = node.parameters.operation
         try:
-            return InfoNode(operations[op_code], c_i, w_i, h_i, k_w, s_w, s_h, c_o, w_o, h_o)
+            return InfoNode(operations[op_code], c_i, w_i, h_i, k_w, k_w, s_w, s_h, c_o, w_o, h_o)
         except KeyError:
             raise CompilerError('Unknown elementwise operation: {}'.format(op_code))
 
