@@ -21,7 +21,7 @@ LAYER_DESCRIPTORS = {
     'EuclideanLoss': shape_scalar,
     'Eltwise': shape_identity,
     'Exp': shape_identity,
-    'Flatten': shape_not_implemented,
+    'Flatten': shape_flatten,
     'HDF5Data': shape_data,
     'HDF5Output': shape_identity,
     'HingeLoss': shape_scalar,

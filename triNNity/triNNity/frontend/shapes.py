@@ -54,6 +54,10 @@ def shape_mem_data(node):
     params = node.parameters
     return TensorShape(params.batch_size, params.channels, params.height, params.width)
 
+def shape_flatten(node):
+    params = node.parameters
+    return TensorShape(params.batch_size*params.channels*params.height*params.width)
+
 def shape_concat(node):
     axis = node.layer.parameters.axis
     output_shape = None

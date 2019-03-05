@@ -257,6 +257,17 @@ class TrinnityNode(object):
 
             args = ', '.join(['ACTIVATION_TYPE', self.elt_op] + args)
 
+        elif (self.op == 'flatten'):
+            self.op = 'triNNity::layer::FlattenLayer'
+
+            # Set up input buffers
+            self.input_buffers = []
+            parents = self.node.get_all_parents()
+            for n in parents:
+              self.input_buffers.append(n.name + '->output')
+
+            args = ', '.join(['ACTIVATION_TYPE'] + args)
+
         else:
             if (self.op not in self.magic_layers):
                 print_stderr('triNNity backend does not implement layer \'' + self.op + '\'')
