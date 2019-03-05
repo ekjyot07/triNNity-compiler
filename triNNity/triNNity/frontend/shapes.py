@@ -56,7 +56,15 @@ def shape_mem_data(node):
 
 def shape_flatten(node):
     params = node.parameters
-    return TensorShape(params.batch_size*params.channels*params.height*params.width)
+    if (params.axis != 1):
+        raise CompilerError('Unsupported Flatten operation: axis == ' + str(params.axis) + ', required == 1')
+    if (params.end_axis != -1):
+        raise CompilerError('Unsupported Flatten operation: end_axis == ' + str(params.end_axis) + ', required == -1')
+    pshape = node.parents[0].output_shape
+    psize = 1
+    for dim in pshape:
+        psize *= dim
+    return TensorShape(psize)
 
 def shape_concat(node):
     axis = node.layer.parameters.axis
