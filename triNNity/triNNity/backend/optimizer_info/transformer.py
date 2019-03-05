@@ -137,7 +137,7 @@ class InfoMapper(IRNodeMapper):
         w_o = int(math.ceil(w_i / s_w))
 
         if (k_h != k_w):
-            raise CompilerError('Unsupported asymmetric pooling operation: {}'.format(op_code))
+            raise CompilerError('Unsupported asymmetric pooling operation: {}'.format(node.node.name))
 
         return InfoNode('pooling', c_i, w_i, h_i, k_w, k_w, s_w, s_h, c_o, w_o, h_o)
 
@@ -229,6 +229,18 @@ class InfoMapper(IRNodeMapper):
             return InfoNode(operations[op_code], c_i, w_i, h_i, k_w, k_w, s_w, s_h, c_o, w_o, h_o)
         except KeyError:
             raise CompilerError('Unknown elementwise operation: {}'.format(op_code))
+
+    def map_flatten(self, node):
+        k_w =  0
+        s_h =  1
+        s_w =  1
+        c_i = node.parents[0].output_shape[1]
+        h_i = node.parents[0].output_shape[2]
+        w_i = node.parents[0].output_shape[3]
+        c_o = node.output_shape[1]
+        h_o = node.output_shape[2]
+        w_o = node.output_shape[3]
+        return InfoNode('flatten', c_i, w_i, h_i, k_w, k_w, s_w, s_h, c_o, w_o, h_o)
 
     def commit(self, chains):
         return chains

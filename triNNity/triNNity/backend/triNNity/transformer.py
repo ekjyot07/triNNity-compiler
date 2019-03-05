@@ -422,6 +422,12 @@ class TrinnityMapper(IRNodeMapper):
         except KeyError:
             raise CompilerError('Unknown elementwise operation: {}'.format(op_code))
 
+    def map_flatten(self, node):
+        c_i = node.parents[0].output_shape[1]
+        h_i = node.parents[0].output_shape[2]
+        w_i = node.parents[0].output_shape[3]
+        return TrinnityNode('flatten', c_i, w_i, h_i)
+
     def commit(self, chains):
         return chains
 
