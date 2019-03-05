@@ -137,7 +137,7 @@ class InfoMapper(IRNodeMapper):
         w_o = int(math.ceil(w_i / s_w))
 
         if (k_h != k_w):
-            raise CompilerError('Unsupported asymmetric pooling operation: {}'.format(node.node.name))
+            raise CompilerError('Unsupported asymmetric pooling operation: {}'.format(node.name))
 
         return InfoNode('pooling', c_i, w_i, h_i, k_w, k_w, s_w, s_h, c_o, w_o, h_o)
 
