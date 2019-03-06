@@ -38,6 +38,12 @@ class InfoNode(object):
     def emit(self):
         '''Emits the topology source line for this node.'''
 
+        # Basic coherence check
+        if any( x < 0 for x in self.args):
+                raise CompilerError('Incoherent parameters in layer' +
+                                    self.node.name +
+                                    ': ' + str(self.args))
+
         has_relu = 'relu' in self.kwargs and self.kwargs['relu']
 
         # Collect out edges
@@ -57,7 +63,7 @@ class InfoNode(object):
 
         outputs = []
         if (self.orig_op not in magic_layers):
-          outputs += ['Scenario {' + ', '.join(['kernels = ' + str(c_o),
+                outputs += ['Scenario {' + ', '.join(['kernels = ' + str(c_o),
                                                 'channels = ' + str(c_i),
                                                 'stride = ' + str(s_w),
                                                 'width = ' + str(w_i),
