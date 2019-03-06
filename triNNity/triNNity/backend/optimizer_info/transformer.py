@@ -50,8 +50,8 @@ class InfoNode(object):
         edges = []
 
         c_i = str(int(self.args[0]))
-        h_i = str(int(self.args[1]))
-        w_i = str(int(self.args[2]))
+        w_i = str(int(self.args[1]))
+        h_i = str(int(self.args[2]))
         k_w = str(int(self.args[3]))
         k_h = str(int(self.args[4]))
         s_w = str(int(self.args[5]))

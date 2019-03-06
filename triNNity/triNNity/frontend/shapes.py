@@ -64,7 +64,7 @@ def shape_flatten(node):
     psize = 1
     for dim in pshape:
         psize *= dim
-    return TensorShape(1, 1, 1, psize)
+    return TensorShape(1, psize, 1, 1)
 
 def shape_concat(node):
     axis = node.layer.parameters.axis
