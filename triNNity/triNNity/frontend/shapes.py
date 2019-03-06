@@ -60,7 +60,7 @@ def shape_flatten(node):
         raise CompilerError('Unsupported Flatten operation: axis == ' + str(params.axis) + ', required == 1')
     if (params.end_axis != -1):
         raise CompilerError('Unsupported Flatten operation: end_axis == ' + str(params.end_axis) + ', required == -1')
-    return map(int, node.parameters.shape[0].dim)
+    return node.parents[0].output_shape
 
 def shape_concat(node):
     axis = node.layer.parameters.axis
