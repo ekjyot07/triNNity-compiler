@@ -60,11 +60,7 @@ def shape_flatten(node):
         raise CompilerError('Unsupported Flatten operation: axis == ' + str(params.axis) + ', required == 1')
     if (params.end_axis != -1):
         raise CompilerError('Unsupported Flatten operation: end_axis == ' + str(params.end_axis) + ', required == -1')
-    pshape = node.parents[0].output_shape
-    psize = 1
-    for dim in pshape:
-        psize *= dim
-    return TensorShape(1, psize, 1, 1)
+    return node.output_shape
 
 def shape_concat(node):
     axis = node.layer.parameters.axis
