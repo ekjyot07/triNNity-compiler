@@ -339,7 +339,7 @@ class TrinnityMapper(IRNodeMapper):
         if not node.parameters.bias_term:
             kwargs['biased'] = False
 
-        return MaybeActivated(node)('conv', c_i, w_i, h_i, k_w, s_w, s_h, c_o, w_o, h_o, **kwargs)
+        return MaybeActivated(node)('conv', c_i, w_i, h_i, k_w, k_h, s_w, s_h, c_o, w_o, h_o, **kwargs)
 
     def map_relu(self, node):
         c_i = node.parents[0].output_shape[1]
