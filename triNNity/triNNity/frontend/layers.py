@@ -21,7 +21,7 @@ LAYER_DESCRIPTORS = {
     'EuclideanLoss': shape_scalar,
     'Eltwise': shape_identity,
     'Exp': shape_identity,
-    'Flatten': shape_not_implemented,
+    'Flatten': shape_flatten,
     'HDF5Data': shape_data,
     'HDF5Output': shape_identity,
     'HingeLoss': shape_scalar,
@@ -67,7 +67,7 @@ class LayerKind(LayerType):
             val = LAYER_DESCRIPTORS[node.kind](node)
             return val
         except NotImplementedError:
-            raise CompilerError('Output shape computation not implemented for type: %s' % node.kind)
+            raise CompilerError('Output shape computation not implemented for layer type: %s' % node.kind)
 
 
 class LayerDispatchError(CompilerError):
@@ -90,7 +90,7 @@ class LayerDispatch(object):
         try:
             return getattr(self, name)
         except AttributeError:
-            raise LayerDispatchError('No handler found for node kind: %s (expected: %s)' %
+            raise LayerDispatchError('No handler found for layer type: %s (expected: %s)' %
                                     (node_kind, name))
 
 class LayerAdapter(object):
@@ -106,7 +106,7 @@ class LayerAdapter(object):
         try:
             return getattr(self.layer, name)
         except AttributeError:
-            raise LayerDispatchError('Caffe parameters not found for layer kind: %s' % (self.kind))
+            raise LayerDispatchError('Caffe parameters not found for layer type: %s' % (self.kind))
 
     @staticmethod
     def get_kernel_value(scalar, repeated, idx, default=None):

@@ -257,6 +257,17 @@ class TrinnityNode(object):
 
             args = ', '.join(['ACTIVATION_TYPE', self.elt_op] + args)
 
+        elif (self.op == 'flatten'):
+            self.op = 'triNNity::layer::FlattenLayer'
+
+            # Set up input buffers
+            self.input_buffers = []
+            parents = self.node.get_all_parents()
+            for n in parents:
+              self.input_buffers.append(n.name + '->output')
+
+            args = ', '.join(['ACTIVATION_TYPE'] + args)
+
         else:
             if (self.op not in self.magic_layers):
                 print_stderr('triNNity backend does not implement layer \'' + self.op + '\'')
@@ -410,6 +421,12 @@ class TrinnityMapper(IRNodeMapper):
             return TrinnityNode(operations[op_code], elt_count)
         except KeyError:
             raise CompilerError('Unknown elementwise operation: {}'.format(op_code))
+
+    def map_flatten(self, node):
+        c_i = node.parents[0].output_shape[1]
+        h_i = node.parents[0].output_shape[2]
+        w_i = node.parents[0].output_shape[3]
+        return TrinnityNode('flatten', c_i, w_i, h_i)
 
     def commit(self, chains):
         return chains

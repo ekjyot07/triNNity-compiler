@@ -189,7 +189,8 @@ class IRGraphBuilder(object):
             if not exclude:
                 filtered_layers.append(layer)
                 # Guard against dupes.
-                assert layer.name not in filtered_layer_names
+                if layer.name in filtered_layer_names:
+                    raise CompilerError('Duplicated layer name: ' + layer.name)
                 filtered_layer_names.add(layer.name)
         return filtered_layers
 
