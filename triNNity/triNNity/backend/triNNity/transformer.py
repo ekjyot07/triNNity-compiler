@@ -367,7 +367,7 @@ class TrinnityMapper(IRNodeMapper):
         else:
             raise CompilerError('Unsupported pooling type.')
         kernel_params = self.get_kernel_params(node)
-        return TrinnityNode(pool_op, c_i, w_i, h_i, k_h, s_w, s_h, c_o, w_o, h_o)
+        return TrinnityNode(pool_op, c_i, w_i, h_i, k_w, k_h, s_w, s_h, c_o, w_o, h_o)
 
     def map_inner_product(self, node):
         assert node.parameters.axis == 1

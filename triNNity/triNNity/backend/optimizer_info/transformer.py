@@ -135,10 +135,6 @@ class InfoMapper(IRNodeMapper):
         c_o = node.output_shape[1]
         h_o = int(math.ceil(h_i / s_h))
         w_o = int(math.ceil(w_i / s_w))
-
-        if (k_h != k_w):
-            raise CompilerError('Unsupported asymmetric pooling operation: {}'.format(node.name))
-
         return InfoNode('pooling', c_i, w_i, h_i, k_w, k_w, s_w, s_h, c_o, w_o, h_o)
 
     def map_inner_product(self, node):
