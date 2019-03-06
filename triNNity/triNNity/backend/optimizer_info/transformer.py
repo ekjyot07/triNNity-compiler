@@ -39,7 +39,7 @@ class InfoNode(object):
         '''Emits the topology source line for this node.'''
 
         # Basic coherence check
-        if any( int(x) <= 0 for x in self.args):
+        if any( int(x) < 0 for x in self.args):
                 raise CompilerError('Incoherent parameters in layer ' +
                                     self.node.name +
                                     ': ' + str(self.args))
