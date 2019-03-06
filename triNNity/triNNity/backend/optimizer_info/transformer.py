@@ -40,7 +40,7 @@ class InfoNode(object):
 
         # Basic coherence check
         if any( x < 0 for x in self.args):
-                raise CompilerError('Incoherent parameters in layer' +
+                raise CompilerError('Incoherent parameters in layer ' +
                                     self.node.name +
                                     ': ' + str(self.args))
 
