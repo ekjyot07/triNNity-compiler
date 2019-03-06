@@ -61,7 +61,8 @@ def shape_flatten(node):
     if (params.end_axis != -1):
         raise CompilerError('Unsupported Flatten operation: end_axis == ' + str(params.end_axis) + ', required == -1')
     if any(x < 0 for x in node.parents[0].output_shape):
-        raise CompilerError('Incoherent Flatten operation: parent (' + node.parents[0].name + ') has negative dimensions in output ' + str(node.parents[0].output_shape))
+        raise CompilerError('Incoherent Flatten operation: parent layer ' + node.parents[0].name +
+                            ' has negative dimensions in output ' + ', '.join([str(x) for x in node.parents[0].output_shape]))
     return node.parents[0].output_shape
 
 def shape_concat(node):
