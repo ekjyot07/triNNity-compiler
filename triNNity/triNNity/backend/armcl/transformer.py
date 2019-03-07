@@ -312,7 +312,7 @@ class ARMCLMapper(IRNodeMapper):
     def map_convolution(self, node):
         kernel_params = self.get_kernel_params(node)
         kwargs = {}
-        k_h = kernel_params.kernel_h
+        # k_h = kernel_params.kernel_h
         k_w = kernel_params.kernel_w
         s_h = kernel_params.stride_h
         s_w = kernel_params.stride_w
@@ -339,7 +339,7 @@ class ARMCLMapper(IRNodeMapper):
     def map_pooling(self, node):
         pool_type = node.parameters.pool
         kernel_params = self.get_kernel_params(node)
-        k_h = kernel_params.kernel_h
+        # k_h = kernel_params.kernel_h
         k_w = kernel_params.kernel_w
         s_h = kernel_params.stride_h
         s_w = kernel_params.stride_w
@@ -357,7 +357,7 @@ class ARMCLMapper(IRNodeMapper):
         else:
             raise CompilerError('Unsupported pooling type.')
         kernel_params = self.get_kernel_params(node)
-        return ARMCLNode(pool_op, c_i, w_i, h_i, k_h, s_w, s_h, c_o, w_o, h_o)
+        return ARMCLNode(pool_op, c_i, w_i, h_i, k_w, s_w, s_h, c_o, w_o, h_o)
 
     def map_inner_product(self, node):
         assert node.parameters.axis == 1
