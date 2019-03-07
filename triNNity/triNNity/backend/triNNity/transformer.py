@@ -80,17 +80,17 @@ class TrinnityNode(object):
             # Set up weights buffer
             self.weights_buffer_name = self.node.name + '_weights'
             self.weights_buffer = 'WEIGHT_TYPE' + ' * ' + self.weights_buffer_name + ';'
-            decls += [(self.weights_buffer_name, self.weights_buffer, 'WEIGHT_TYPE', str(int(args[0])*int(args[3])*int(args[3])*int(args[6])))]
+            decls += [(self.weights_buffer_name, self.weights_buffer, 'WEIGHT_TYPE', str(int(args[0])*int(args[3])*int(args[4])*int(args[7])))]
 
             # Set up bias buffer
             self.bias_buffer_name = self.node.name + '_bias'
             self.bias_buffer = 'WEIGHT_TYPE' + ' * ' + self.bias_buffer_name + ';'
-            decls += [(self.bias_buffer_name, self.bias_buffer, 'WEIGHT_TYPE', str(int(args[6])))]
+            decls += [(self.bias_buffer_name, self.bias_buffer, 'WEIGHT_TYPE', str(int(args[7])))]
 
             # Set up output buffer
             self.output_buffer_name = self.node.name + '_output'
             self.output_buffer = 'ACTIVATION_TYPE' + ' * ' + self.output_buffer_name + ';'
-            decls += [(self.output_buffer_name, self.output_buffer, 'ACTIVATION_TYPE', str(int(args[6])*int(args[7])*int(args[8])))]
+            decls += [(self.output_buffer_name, self.output_buffer, 'ACTIVATION_TYPE', str(int(args[7])*int(args[8])*int(args[9])))]
 
             args = ', '.join(['ACTIVATION_TYPE', 'WEIGHT_TYPE', 'ACTIVATION_TYPE', 'LAYER_'+self.node.name.upper()+'_METHOD', 'GEMM_TYPE'] + args + ['LAYER_'+(self.node.name.upper())+'_IN_FMT', 'triNNity::BOUND_IMPLICIT_PAD', act])
 
