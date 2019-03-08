@@ -55,9 +55,8 @@ class TensorFlowNode(object):
         if self.kwargs:
             args += [(self.pair(k, v)) for k, v in self.kwargs]
         # Set the node name
-        args.append(self.pair('name', self.node.name))
         args = ', '.join(args)
-        return 'tf.keras.layers.%s(%s)' % (self.op, args)
+        return '%s = tf.keras.layers.%s(%s)' % (self.node.name, self.op, args)
 
 
 class MaybeActivated(object):
@@ -119,7 +118,7 @@ class TensorFlowMapper(IRNodeMapper):
         assert node.parameters.axis == 1
         #TODO: Unbiased
         assert node.parameters.bias_term == True
-        return MaybeActivated(node)('fc', node.parameters.num_output)
+        return MaybeActivated(node)('Dense', node.parameters.num_output)
 
     def map_softmax(self, node):
         return TensorFlowNode('Softmax')
@@ -179,7 +178,7 @@ class TensorFlowEmitter(object):
         return self.prefix + s + '\n'
 
     def emit_imports(self):
-        return self.statement('import tensorflow as tf')
+        return self.statement('import tensorflow as tf\n')
 
     def emit_def(self, name):
         return self.statement('{} = tf.keras.Model(inputs=inputs, outputs=outputs)'.format(name))
