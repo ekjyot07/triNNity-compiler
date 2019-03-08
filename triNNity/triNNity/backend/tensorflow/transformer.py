@@ -186,7 +186,7 @@ class TensorFlowEmitter(object):
 
     def emit_parents(self, chain):
         assert len(chain)
-        s += ', '.join(["%s" % parent.name for parent in chain[0].node.parents])
+        s = ', '.join(["%s" % parent.name for parent in chain[0].node.parents])
         return self.statement('(' + s + ')')
 
     def emit_node(self, node):
