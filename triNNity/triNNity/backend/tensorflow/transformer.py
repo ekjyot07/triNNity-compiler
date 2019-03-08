@@ -98,14 +98,14 @@ class TensorFlowMapper(IRNodeMapper):
                                     kernel_params.stride_h, kernel_params.stride_w, **kwargs)
 
     def map_relu(self, node):
-        return TensorFlowNode('Relu')
+        return TensorFlowNode('ReLU')
 
     def map_pooling(self, node):
         pool_type = node.parameters.pool
         if pool_type == 0:
-            pool_op = 'max_pool'
+            pool_op = 'MaxPool2D'
         elif pool_type == 1:
-            pool_op = 'avg_pool'
+            pool_op = 'AvgPool2D'
         else:
             # Stochastic pooling, for instance.
             raise CompilerError('Unsupported pooling type.')
@@ -124,15 +124,7 @@ class TensorFlowMapper(IRNodeMapper):
         return TensorFlowNode('Softmax')
 
     def map_lrn(self, node):
-        params = node.parameters
-        # The window size must be an odd value. For a window
-        # size of (2*n+1), TensorFlow defines depth_radius = n.
-        assert params.local_size % 2 == 1
-        # Caffe scales by (alpha/(2*n+1)), whereas TensorFlow
-        # just scales by alpha (as does Krizhevsky's paper).
-        # We'll account for that here.
-        alpha = params.alpha / float(params.local_size)
-        return TensorFlowNode('lrn', int(params.local_size / 2), alpha, params.beta)
+        raise CompilerError('tf.keras does not support local response normalization layer')
 
     def map_concat(self, node):
         axis = (2, 3, 1, 0)[node.parameters.axis]
@@ -147,7 +139,7 @@ class TensorFlowMapper(IRNodeMapper):
         return MaybeActivated(node, default=False)('BatchNorm', **kwargs)
 
     def map_eltwise(self, node):
-        operations = {0: 'multiply', 1: 'add', 2: 'max'}
+        operations = {0: 'Multiply', 1: 'Add', 2: 'Max'}
         op_code = node.parameters.operation
         try:
             return TensorFlowNode(operations[op_code])
@@ -189,7 +181,7 @@ class TensorFlowEmitter(object):
         return self.statement('(' + s + ')')
 
     def emit_node(self, node):
-        return self.statement(' ' * 5 + '.' + node.emit())
+        return self.statement(' ' * 5 + node.emit())
 
     def emit(self, name, chains):
         s = self.emit_imports()
