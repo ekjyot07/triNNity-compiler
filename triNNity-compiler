@@ -28,33 +28,6 @@ def validate_arguments(args):
     fatal_error('No output paths specified.')
 
 def convert_tensorflow(def_path, caffemodel_path, data_output_path, code_output_path, phase, verbose):
-  main_code_preamble = '''def main():
-    # Parse arguments
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--weights', help='Path to the converted model parameters (.npy)')
-    parser.add_argument('--ground-truth', help='Path to validation set ground truth (.txt)')
-    parser.add_argument('--images', help='Validation set images directory path')
-    parser.add_argument('--model', help='The model to evaluate')
-    args = parser.parse_args()
-
-    data_spec = DataSpec(batch_size=1, scale_size=256, crop_size=224, isotropic=True)
-
-    data_node = tf.placeholder(tf.float32,
-                               shape=(None, data_spec.crop_size, data_spec.crop_size, data_spec.channels))
-
-'''
-
-  main_code_postamble = '''    image_producer = ImageNetProducer(val_path=args.ground_truth,
-                                      data_path=args.images,
-                                      data_spec=data_spec)
-
-    validate(net, args.model_path, image_producer, 5)
-    validate(net, args.model_path, image_producer, 1)
-
-if __name__ == '__main__':
-    main()
-'''
-
   try:
     from triNNity.backend.tensorflow import TensorFlowTransformer
     transformer = TensorFlowTransformer(def_path, caffemodel_path, verbose=verbose, phase=phase)
@@ -70,10 +43,6 @@ if __name__ == '__main__':
       print_stderr('Generating code for model...')
       with open(code_output_path, 'w') as src_out:
         src_out.write(transformer.transform_source()[0])
-        src_out.write('\n\n\n')
-        src_out.write(main_code_preamble)
-        src_out.write("    net = CIFAR10({'data': data_node})\n")
-        src_out.write(main_code_postamble)
     print_stderr('Done.')
   except CompilerError as err:
     fatal_error('Error encountered: {}'.format(err))
