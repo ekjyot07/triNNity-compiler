@@ -56,7 +56,10 @@ class TensorFlowNode(object):
             args += [(self.pair(k, v)) for k, v in self.kwargs]
         # Set the node name
         args = ', '.join(args)
-        return '%s = tf.keras.layers.%s(%s)' % (self.node.name, self.op, args)
+        # Get inputs
+        inputs = [x.name for x in self.node.parents]
+        inputs = ', '.join(inputs)
+        return '%s = tf.keras.layers.%s(%s)(%s)' % (self.node.name, self.op, args, inputs)
 
 
 class MaybeActivated(object):
