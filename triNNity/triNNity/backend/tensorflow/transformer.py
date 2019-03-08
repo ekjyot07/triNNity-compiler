@@ -106,9 +106,9 @@ class TensorFlowMapper(IRNodeMapper):
     def map_pooling(self, node):
         pool_type = node.parameters.pool
         if pool_type == 0:
-            pool_op = 'MaxPool2D'
+            pool_op = 'MaxPooling2D'
         elif pool_type == 1:
-            pool_op = 'AvgPool2D'
+            pool_op = 'AveragePooling2D'
         else:
             # Stochastic pooling, for instance.
             raise CompilerError('Unsupported pooling type.')
