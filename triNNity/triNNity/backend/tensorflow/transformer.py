@@ -57,7 +57,7 @@ class TensorFlowNode(object):
         # Set the node name
         args.append(self.pair('name', self.node.name))
         args = ', '.join(args)
-        return '%s(%s)' % (self.op, args)
+        return 'tf.keras.layers.%s(%s)' % (self.op, args)
 
 
 class MaybeActivated(object):
@@ -95,11 +95,11 @@ class TensorFlowMapper(IRNodeMapper):
             kwargs['biased'] = False
         assert kernel_params.kernel_h == h
         assert kernel_params.kernel_w == w
-        return MaybeActivated(node)('conv', kernel_params.kernel_h, kernel_params.kernel_w, c_o,
+        return MaybeActivated(node)('Conv2D', kernel_params.kernel_h, kernel_params.kernel_w, c_o,
                                     kernel_params.stride_h, kernel_params.stride_w, **kwargs)
 
     def map_relu(self, node):
-        return TensorFlowNode('relu')
+        return TensorFlowNode('Relu')
 
     def map_pooling(self, node):
         pool_type = node.parameters.pool
@@ -122,7 +122,7 @@ class TensorFlowMapper(IRNodeMapper):
         return MaybeActivated(node)('fc', node.parameters.num_output)
 
     def map_softmax(self, node):
-        return TensorFlowNode('softmax')
+        return TensorFlowNode('Softmax')
 
     def map_lrn(self, node):
         params = node.parameters
@@ -137,15 +137,15 @@ class TensorFlowMapper(IRNodeMapper):
 
     def map_concat(self, node):
         axis = (2, 3, 1, 0)[node.parameters.axis]
-        return TensorFlowNode('concat', axis)
+        return TensorFlowNode('Concat', axis)
 
     def map_dropout(self, node):
-        return TensorFlowNode('dropout', node.parameters.dropout_ratio)
+        return TensorFlowNode('Dropout', node.parameters.dropout_ratio)
 
     def map_batch_norm(self, node):
         scale_offset = len(node.data) == 4
         kwargs = {} if scale_offset else {'scale_offset': False}
-        return MaybeActivated(node, default=False)('batch_normalization', **kwargs)
+        return MaybeActivated(node, default=False)('BatchNorm', **kwargs)
 
     def map_eltwise(self, node):
         operations = {0: 'multiply', 1: 'add', 2: 'max'}
@@ -154,6 +154,10 @@ class TensorFlowMapper(IRNodeMapper):
             return TensorFlowNode(operations[op_code])
         except KeyError:
             raise CompilerError('Unknown elementwise operation: {}'.format(op_code))
+
+    def map_flatten(self, node):
+        axis = (2, 3, 1, 0)[node.parameters.axis]
+        return TensorFlowNode('Flatten', axis)
 
     def commit(self, chains):
         return chains
@@ -175,30 +179,21 @@ class TensorFlowEmitter(object):
         return self.prefix + s + '\n'
 
     def emit_imports(self):
-        return self.statement('')
+        return self.statement('import tensorflow as tf')
 
-    def emit_class_def(self, name):
-        return self.statement('class %s(Network):' % (name))
-
-    def emit_setup_def(self):
-        return self.statement('def setup(self):')
+    def emit_def(self, name):
+        return self.statement('{} = tf.keras.Model(inputs=inputs, outputs=outputs)'.format(name))
 
     def emit_parents(self, chain):
         assert len(chain)
-        s = '(self.feed('
-        sep = ', \n' + self.prefix + (' ' * len(s))
-        s += sep.join(["'%s'" % parent.name for parent in chain[0].node.parents])
-        return self.statement(s + ')')
+        s += ', '.join(["%s" % parent.name for parent in chain[0].node.parents])
+        return self.statement('(' + s + ')')
 
     def emit_node(self, node):
         return self.statement(' ' * 5 + '.' + node.emit())
 
     def emit(self, name, chains):
         s = self.emit_imports()
-        s += self.emit_class_def(name)
-        self.indent()
-        s += self.emit_setup_def()
-        self.indent()
         blocks = []
         for chain in chains:
             b = ''
@@ -207,6 +202,7 @@ class TensorFlowEmitter(object):
                 b += self.emit_node(node)
             blocks.append(b[:-1] + ')')
         s = s + '\n\n'.join(blocks)
+        s += self.emit_def(name)
         return s
 
 
