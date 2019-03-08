@@ -127,7 +127,8 @@ class TensorFlowMapper(IRNodeMapper):
         return TensorFlowNode('Softmax')
 
     def map_lrn(self, node):
-        raise CompilerError('tf.keras does not support local response normalization layer')
+        print('Warning: tf.keras does not support local response normalization layer')
+        return TensorFlowNode('Identity')
 
     def map_concat(self, node):
         axis = (2, 3, 1, 0)[node.parameters.axis]
