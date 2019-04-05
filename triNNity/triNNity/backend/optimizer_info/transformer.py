@@ -375,4 +375,4 @@ class InfoTransformer(object):
             toposource_header = str(self.no_nodes) + ' ' +  str(self.no_params) + ' ' + str(self.no_edges) + '\n\n'
             self.toposource = toposource_header + toposource_body
             self.layersource = '\n'.join(actual_nodes)
-        return [self.toposource, self.layersource, self.constraintssource]
+        return [self.toposource, self.layersource, self.constraintssource, actual_nodes, emitter.collected_edges]

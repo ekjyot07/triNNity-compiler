@@ -301,7 +301,7 @@ def convert_mkldnn(def_path, caffemodel_path, data_output_path, code_output_path
   except CompilerError as err:
     fatal_error('Error encountered: {}'.format(err))
 
-def convert_optimizer_info(def_path, caffemodel_path, topo_output_path, layer_output_path, constraints_output_path, phase, verbose):
+def convert_optimizer_info(def_path, caffemodel_path, topo_output_path, layer_output_path, constraints_output_path, graph_output_path, phase, verbose):
   try:
     from triNNity.backend.optimizer_info import InfoTransformer
     transformer = InfoTransformer(def_path, caffemodel_path, verbose=verbose, phase=phase)
@@ -323,6 +323,23 @@ def convert_optimizer_info(def_path, caffemodel_path, topo_output_path, layer_ou
       with open(constraints_output_path, 'w') as src_out:
         src_out.write(tsrc[2])
 
+    if graph_output_path:
+      print_stderr('Generating visual graph description for model...')
+      with open(graph_output_path, 'w') as src_out:
+        nodes = tsrc[3]
+        node_indices = range(0, len(nodes))
+        edges = tsrc[4]
+        src_out.write('graph ' + transformer.graph.name + '{\n')
+
+        for (k, v) in zip(node_indices, nodes):
+          src_out.write(str(k) + ' [label=' + v + '];\n')
+
+        for (a, b) in edges:
+          src_out.write(str(a) + ' -> ' str(b) + ';\n')
+
+        src_out.write('}')
+
+
     print_stderr('Done.')
   except CompilerError as err:
     fatal_error('Error encountered: {}'.format(err))
@@ -336,6 +353,7 @@ def main():
     parser.add_argument('--topology-output', help='Generate topology description into this file')
     parser.add_argument('--layers-output', help='Generate layer description into this file')
     parser.add_argument('--constraints-output', help='Generate layer constraints into this file')
+    parser.add_argument('--graph-output', help='Generate visual graph description into this file')
     parser.add_argument('--backend', default='trinnity', help='Which backend to use for code generation')
     parser.add_argument('-p',
                         '--phase',
@@ -355,7 +373,7 @@ def main():
     elif (args.backend == 'mkldnn'):
       convert_mkldnn(args.model, args.weights, args.data_output, args.code_output, args.phase, args.verbose)
     elif (args.backend == 'optimizer-info'):
-      convert_optimizer_info(args.model, args.weights, args.topology_output, args.layers_output, args.constraints_output, args.phase, args.verbose)
+      convert_optimizer_info(args.model, args.weights, args.topology_output, args.layers_output, args.constraints_output, args.graph_output, args.phase, args.verbose)
     else:
       fatal_error('No backend selected')
 
