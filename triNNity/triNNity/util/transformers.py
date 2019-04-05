@@ -34,6 +34,7 @@ class DataInjector(object):
             self.load_using_caffe()
         else:
             self.load_using_pb()
+        print(self.params)
 
     def load_using_caffe(self):
         caffe = get_caffe_resolver().caffe
