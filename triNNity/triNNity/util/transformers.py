@@ -352,24 +352,15 @@ class ParameterNamer(object):
         for node in graph.nodes:
             if node.data is None:
                 continue
-            if node.kind in (LayerKind.Convolution, LayerKind.InnerProduct):
+            if node.kind == LayerKind.InnerProduct):
                 names = ('weights',)
-                print("RAW LAYER")
-                print(node.layer.raw_layer)
-                print("PARAMETERS")
-                print(node.parameters)
-                # ~ if node.parameters.mask_term_:
-                    # ~ names += ('masked_weights',)
-                # ~ if node.parameters.quantize_term_:
-                    # ~ names += ('quantized_weights',)
-
-                # ~ if node.parameters.bias_term_:
-                    # ~ names += ('biases',)
-                    # ~ if node.parameters.mask_term_:
-                      # ~ names += ('masked_biases',)
-                    # ~ if node.parameters.quantize_term_:
-                      # ~ names += ('quantized_biases',)
-
+                if node.parameters.bias_term:
+                    names += ('biases',)
+            elif node.kind == LayerKind.Convolution:
+                names = ('weights',)
+                names += ('biases',)
+                names += ('weights_masked',)
+                names += ('biases_masked',)
             elif node.kind == LayerKind.BatchNorm:
                 names = ('mean', 'variance')
                 if len(node.data) == 4:
@@ -379,6 +370,7 @@ class ParameterNamer(object):
                 continue
             if len(names) > len(list(node.data)):
                 raise CompilerError('parameter mismatch in node: {}, expected {} parameters, got {}'.format(node, len(names), len(list(node.data))))
-            # Ignore extra data blobs
-            node.data = dict(zip(names, list(node.data)[:len(names)]))
+            # Ignore extra data blobs or extra names
+            awful_hack = min(len(names), len(list(node.data)))
+            node.data = dict(zip(names, list(node.data)[:awful_hack]))
         return graph
