@@ -94,9 +94,15 @@ def convert_trinnity(def_path, caffemodel_path, data_output_path, code_output_pa
     print_stderr('Compiling for backend: triNNity')
 
     if caffemodel_path is not None:
-      data = transformer.transform_data()
       print_stderr('Converting weights...')
-      print(data)
+      data = transformer.transform_data()
+      for name, blobs in data:
+        blob_idx = 0
+        for blob in blobs:
+          shape = '_'.join([str(x) for x in arr.shape])
+          with open(data_output_path + '.' + name + '.' + str(blob_idx) + '.' + shape + '.bin', 'wb') as data_out:
+            data_out.write(arr.tobytes('C'))
+          blob_idx += 1
 
     if code_output_path:
       print_stderr('Generating code for model...')
@@ -174,9 +180,15 @@ def convert_armcl(def_path, caffemodel_path, data_output_path, code_output_path,
     print_stderr('Compiling for backend: triNNity')
 
     if caffemodel_path is not None:
-      data = transformer.transform_data()
       print_stderr('Converting weights...')
-      print(data)
+      data = transformer.transform_data()
+      for name, blobs in data:
+        blob_idx = 0
+        for blob in blobs:
+          shape = '_'.join([str(x) for x in arr.shape])
+          with open(data_output_path + '.' + name + '.' + str(blob_idx) + '.' + shape + '.bin', 'wb') as data_out:
+            data_out.write(arr.tobytes('C'))
+          blob_idx += 1
 
     if code_output_path:
       print_stderr('Generating code for model...')
@@ -256,9 +268,15 @@ def convert_mkldnn(def_path, caffemodel_path, data_output_path, code_output_path
     print_stderr('Compiling for backend: triNNity')
 
     if caffemodel_path is not None:
-      data = transformer.transform_data()
       print_stderr('Converting weights...')
-      print(data)
+      data = transformer.transform_data()
+      for name, blobs in data:
+        blob_idx = 0
+        for blob in blobs:
+          shape = '_'.join([str(x) for x in arr.shape])
+          with open(data_output_path + '.' + name + '.' + str(blob_idx) + '.' + shape + '.bin', 'wb') as data_out:
+            data_out.write(arr.tobytes('C'))
+          blob_idx += 1
 
     if code_output_path:
       print_stderr('Generating code for model...')
