@@ -24,6 +24,7 @@ def validate_arguments(args):
      (args.data_output is None) and \
      (args.topology_output is None) and \
      (args.layers_output is None) and \
+     (args.graph_output is None) and \
      (args.constraints_output is None):
     fatal_error('No output paths specified.')
 
