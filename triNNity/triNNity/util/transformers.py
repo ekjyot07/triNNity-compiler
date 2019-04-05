@@ -356,6 +356,8 @@ class ParameterNamer(object):
                 names = ('weights',)
                 print("RAW LAYER")
                 print(node.layer.raw_layer)
+                print("PARAMETERS")
+                print(node.parameters)
                 # ~ if node.parameters.mask_term_:
                     # ~ names += ('masked_weights',)
                 # ~ if node.parameters.quantize_term_:
