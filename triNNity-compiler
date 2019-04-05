@@ -97,13 +97,10 @@ def convert_trinnity(def_path, caffemodel_path, data_output_path, code_output_pa
       print_stderr('Converting weights...')
       data = transformer.transform_data()
       for (name, blobs) in data.items():
-        print(name)
-        print(blobs.items())
-        # for blob in blobs:
-          # shape = '_'.join([str(x) for x in blob.shape])
-          # with open(os.path.join(data_output_path, name + '.' + str(blob_idx) + '.' + shape + '.bin'), 'wb') as data_out:
-            # data_out.write(blob.tobytes('C'))
-          # blob_idx += 1
+        for (bname, bdata) in blobs.items():
+          shape = '_'.join([str(x) for x in bdata.shape])
+          with open(os.path.join(data_output_path, name + '.' + bname + '.' + shape + '.bin'), 'wb') as data_out:
+            data_out.write(bdata.tobytes('C'))
 
     if code_output_path:
       print_stderr('Generating code for model...')
@@ -184,12 +181,10 @@ def convert_armcl(def_path, caffemodel_path, data_output_path, code_output_path,
       print_stderr('Converting weights...')
       data = transformer.transform_data()
       for (name, blobs) in data.items():
-        blob_idx = 0
-        for blob in blobs:
-          shape = '_'.join([str(x) for x in blob.shape])
-          with open(os.path.join(data_output_path, name + '.' + str(blob_idx) + '.' + shape + '.bin'), 'wb') as data_out:
-            data_out.write(blob.tobytes('C'))
-          blob_idx += 1
+        for (bname, bdata) in blobs.items():
+          shape = '_'.join([str(x) for x in bdata.shape])
+          with open(os.path.join(data_output_path, name + '.' + bname + '.' + shape + '.bin'), 'wb') as data_out:
+            data_out.write(bdata.tobytes('C'))
 
     if code_output_path:
       print_stderr('Generating code for model...')
@@ -272,12 +267,10 @@ def convert_mkldnn(def_path, caffemodel_path, data_output_path, code_output_path
       print_stderr('Converting weights...')
       data = transformer.transform_data()
       for (name, blobs) in data.items():
-        blob_idx = 0
-        for blob in blobs:
-          shape = '_'.join([str(x) for x in blob.shape])
-          with open(os.path.join(data_output_path, name + '.' + str(blob_idx) + '.' + shape + '.bin'), 'wb') as data_out:
-            data_out.write(blob.tobytes('C'))
-          blob_idx += 1
+        for (bname, bdata) in blobs.items():
+          shape = '_'.join([str(x) for x in bdata.shape])
+          with open(os.path.join(data_output_path, name + '.' + bname + '.' + shape + '.bin'), 'wb') as data_out:
+            data_out.write(bdata.tobytes('C'))
 
     if code_output_path:
       print_stderr('Generating code for model...')
