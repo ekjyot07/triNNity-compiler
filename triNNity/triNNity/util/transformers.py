@@ -36,7 +36,7 @@ class DataInjector(object):
             self.load_using_pb()
 
         for (k, v) in self.params:
-            print("Layer "+k+" has "+len(v) + " blobs")
+            print("Layer "+k+" has "+str(len(v)) + " blobs")
 
     def load_using_caffe(self):
         caffe = get_caffe_resolver().caffe
