@@ -42,6 +42,7 @@ LAYER_DESCRIPTORS = {
     'SigmoidCrossEntropyLoss': shape_scalar,
     'Silence': shape_not_implemented,
     'Softmax': shape_identity,
+    'SoftmaxWithLoss': shape_identity,
     'Split': shape_not_implemented,
     'Slice': shape_not_implemented,
     'TanH': shape_identity,
