@@ -504,7 +504,6 @@ class TrinnityTransformer(object):
 
         if data_path is not None:
             # Load and associate learned parameters
-            print("TRYING TO INIT DATA INJECTOR")
             graph = DataInjector(def_path, data_path)(graph)
 
         # Transform the graph
