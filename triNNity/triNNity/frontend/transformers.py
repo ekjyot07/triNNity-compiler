@@ -27,14 +27,15 @@ class DataInjector(object):
         self.params = None
         # Load the parameters
         self.load()
+        print("IN DATA INJECTOR")
+        print("Loaded model:")
+        print(self.params)
 
     def load(self):
         if has_pycaffe():
             self.load_using_caffe()
         else:
             self.load_using_pb()
-        print("Loaded model:")
-        print(self.params)
 
     def load_using_caffe(self):
         caffe = get_caffe_resolver().caffe
