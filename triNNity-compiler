@@ -330,7 +330,7 @@ def convert_optimizer_info(def_path, caffemodel_path, topo_output_path, layer_ou
         nodes = tsrc[3]
         node_indices = range(0, len(nodes))
         edges = tsrc[4]
-        src_out.write('graph ' + transformer.graph.name + '{\n')
+        src_out.write('strict digraph ' + transformer.graph.name + ' {\n')
 
         for (k, v) in zip(node_indices, nodes):
           src_out.write(str(k) + ' [label=' + v + '];\n')
