@@ -352,7 +352,7 @@ class ParameterNamer(object):
         for node in graph.nodes:
             if node.data is None:
                 continue
-            if node.kind == LayerKind.InnerProduct):
+            if node.kind == LayerKind.InnerProduct:
                 names = ('weights',)
                 if node.parameters.bias_term:
                     names += ('biases',)
