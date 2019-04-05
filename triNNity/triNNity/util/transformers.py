@@ -35,9 +35,6 @@ class DataInjector(object):
         else:
             self.load_using_pb()
 
-        for (k, v) in self.params:
-            print("Layer "+k+" has "+str(len(v)) + " blobs")
-
     def load_using_caffe(self):
         caffe = get_caffe_resolver().caffe
         net = caffe.Net(self.def_path, self.data_path, caffe.TEST)
