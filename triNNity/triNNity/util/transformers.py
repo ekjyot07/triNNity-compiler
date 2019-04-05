@@ -354,6 +354,7 @@ class ParameterNamer(object):
                 continue
             if node.kind in (LayerKind.Convolution, LayerKind.InnerProduct):
                 names = ('weights',)
+                print("RAW LAYER")
                 print(node.layer.raw_layer)
                 # ~ if node.parameters.mask_term_:
                     # ~ names += ('masked_weights',)
