@@ -100,6 +100,10 @@ class LayerAdapter(object):
         self.kind = kind
 
     @property
+    def raw_layer(self):
+      return self.layer
+
+    @property
     def parameters(self):
         name = LayerDispatch.get_handler_name(self.kind)
         name = '_'.join((name, 'param'))

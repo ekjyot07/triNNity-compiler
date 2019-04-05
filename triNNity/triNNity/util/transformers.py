@@ -354,17 +354,18 @@ class ParameterNamer(object):
                 continue
             if node.kind in (LayerKind.Convolution, LayerKind.InnerProduct):
                 names = ('weights',)
-                if node.parameters.mask_term_:
-                    names += ('masked_weights',)
-                if node.parameters.quantize_term_:
-                    names += ('quantized_weights',)
+                print(node.layer.raw_layer)
+                # ~ if node.parameters.mask_term_:
+                    # ~ names += ('masked_weights',)
+                # ~ if node.parameters.quantize_term_:
+                    # ~ names += ('quantized_weights',)
 
-                if node.parameters.bias_term_:
-                    names += ('biases',)
-                    if node.parameters.mask_term_:
-                      names += ('masked_biases',)
-                    if node.parameters.quantize_term_:
-                      names += ('quantized_biases',)
+                # ~ if node.parameters.bias_term_:
+                    # ~ names += ('biases',)
+                    # ~ if node.parameters.mask_term_:
+                      # ~ names += ('masked_biases',)
+                    # ~ if node.parameters.quantize_term_:
+                      # ~ names += ('quantized_biases',)
 
             elif node.kind == LayerKind.BatchNorm:
                 names = ('mean', 'variance')
