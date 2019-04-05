@@ -336,7 +336,9 @@ def convert_optimizer_info(def_path, caffemodel_path, topo_output_path, layer_ou
           src_out.write(str(k) + ' [label=' + v + '];\n')
 
         for (a, b) in edges:
-          src_out.write(str(a) + ' -> ' + str(b) + ';\n')
+          e_src = nodes.index(a)
+          e_sink = nodes.index(b)
+          src_out.write(str(e_src) + ' -> ' + str(e_sink) + ';\n')
 
         src_out.write('}')
 
