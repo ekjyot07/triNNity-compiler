@@ -9,6 +9,7 @@ LAYER_DESCRIPTORS = {
     # Caffe Types
     'AbsVal': shape_identity,
     'ArgMax': shape_not_implemented,
+    'Accuracy': shape_not_implemented,
     'BatchNorm': shape_identity,
     'BNLL': shape_not_implemented,
     'Concat': shape_concat,
