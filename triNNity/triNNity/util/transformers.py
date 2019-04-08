@@ -206,7 +206,6 @@ class ConcatTreeSplitter(object):
                         root_node = inputs[0]
                         for x in outputs:
                             x.del_parent(node)
-                            root_node.add_child(x)
                             x.add_parent(root_node)
                         finished_nodes.append(root_node)
 
