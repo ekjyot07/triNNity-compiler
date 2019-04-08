@@ -179,7 +179,7 @@ class ConcatTreeSplitter(object):
                             h_o = maybe_pair[0].output_shape[2]
                             w_o = maybe_pair[0].output_shape[3]
                             new_node.output_shape = TensorShape(node.output_shape[0], c_in_l+c_in_r, h_o, w_o)
-                            new_worklist.append(new_node)
+                            new_worklist.append([new_node])
                             unique_id += 1
                         else:
                             new_worklist.append(maybe_pair)
