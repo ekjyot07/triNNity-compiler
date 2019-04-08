@@ -161,34 +161,37 @@ class ConcatTreeSplitter(object):
     def __call__(self, graph):
         new_subgraphs = []
         kill_nodes = []
+        finished_nodes = []
         for node in graph.nodes:
             if node.kind == LayerKind.Concat and len(node.parents) > 2:
                 kill_nodes.append(node.name)
-                worklist = list(chunks_of(2, node.parents))
                 unique_id = 0
-                while len(worklist) > 0:
-                    new_worklist = []
-                    for maybe_pair in worklist:
-                        if len(maybe_pair) == 2:
-                            new_node = IRNode(node.name+'_split_'+str(unique_id), LayerKind.Concat)
-                            new_node.layer = node.layer
-                            new_node.add_parent(maybe_pair[0])
-                            new_node.add_parent(maybe_pair[1])
-                            c_in_l = maybe_pair[0].output_shape[1]
-                            c_in_r = maybe_pair[1].output_shape[1]
-                            h_o = maybe_pair[0].output_shape[2]
-                            w_o = maybe_pair[0].output_shape[3]
-                            new_node.output_shape = TensorShape(node.output_shape[0], c_in_l+c_in_r, h_o, w_o)
-                            new_worklist.append([new_node])
-                            unique_id += 1
-                        else:
-                            new_worklist.append(maybe_pair)
 
-                    worklist = new_worklist
+                inputs = node.parents
+                temp_inputs = []
+                for maybe_pair in list(chunks_of(2, inputs)):
+                    if len(maybe_pair) == 2:
+                        new_node = IRNode(node.name+'_split_'+str(unique_id), LayerKind.Concat)
+                        new_node.layer = node.layer
+                        new_node.add_parent(maybe_pair[0])
+                        new_node.add_parent(maybe_pair[1])
+                        c_in_l = maybe_pair[0].output_shape[1]
+                        c_in_r = maybe_pair[1].output_shape[1]
+                        h_o = maybe_pair[0].output_shape[2]
+                        w_o = maybe_pair[0].output_shape[3]
+                        new_node.output_shape = TensorShape(node.output_shape[0], c_in_l+c_in_r, h_o, w_o)
+                        temp_inputs.append(new_node)
+                        unique_id += 1
+                        finished_nodes.append(new_node)
+                    else:
+                        temp_inputs.append(maybe_pair[0])
 
-                    if len(worklist) == 1:
+                    inputs = temp_inputs
+                    temp_inputs = []
+
+                    if len(inputs) == 1:
                         # this node is the new root
-                        root_node = worklist[0][0]
+                        root_node = inputs[0]
                         for x in node.children:
                             x.del_parent(node)
                             root_node.add_child(x)
