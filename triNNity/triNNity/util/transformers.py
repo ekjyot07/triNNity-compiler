@@ -175,9 +175,6 @@ class ConcatTreeSplitter(object):
 
                 temp_inputs = []
                 for maybe_pair in list(chunks_of(2, inputs)):
-                    if len(inputs) < 2:
-                        break
-
                     if len(maybe_pair) == 2:
                         new_node = IRNode(node.name+'_split_'+str(unique_id), LayerKind.Concat)
                         new_node.layer = node.layer
@@ -214,17 +211,17 @@ class ConcatTreeSplitter(object):
                     inputs = temp_inputs
                     temp_inputs = []
 
-                # At this point we have only one node left
-                assert(len(inputs) == 1)
-                root_node = inputs[0]
-                for x in outputs:
-                    x.del_parent(node)
-                    if self.verbose:
-                        print("Removing edge " + node.name + " -> " + x.name)
-                    x.add_parent(root_node)
-                    if self.verbose:
-                        print("Adding edge " + root_node.name + " -> " + x.name)
-                finished_nodes.append(root_node)
+                    if len(inputs) == 1:
+                        # this node is the new root
+                        root_node = inputs[0]
+                        for x in outputs:
+                            x.del_parent(node)
+                            if self.verbose:
+                                print("Removing edge " + node.name + " -> " + x.name)
+                            x.add_parent(root_node)
+                            if self.verbose:
+                                print("Adding edge " + root_node.name + " -> " + x.name)
+                        finished_nodes.append(root_node)
 
                 new_subgraphs += finished_nodes
 
