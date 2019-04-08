@@ -186,12 +186,22 @@ class ConcatTreeSplitter(object):
 
                         for x in maybe_pair[0].children:
                             maybe_pair[0].del_child(x)
+                            if self.verbose:
+                                print("Removing edge " + maybe_pair[0].name + " -> " + x.name)
 
                         for x in maybe_pair[1].children:
                             maybe_pair[1].del_child(x)
+                            if self.verbose:
+                                print("Removing edge " + maybe_pair[1].name + " -> " + x.name)
 
                         new_node.add_parent(maybe_pair[0])
+                        if self.verbose:
+                            print("Adding edge " + maybe_pair[0].name + " -> " + new_node.name)
+
                         new_node.add_parent(maybe_pair[1])
+                        if self.verbose:
+                            print("Adding edge " + maybe_pair[1].name + " -> " + new_node.name)
+
                         c_in_l = maybe_pair[0].output_shape[1]
                         c_in_r = maybe_pair[1].output_shape[1]
                         h_o = maybe_pair[0].output_shape[2]
