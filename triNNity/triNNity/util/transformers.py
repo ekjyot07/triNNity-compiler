@@ -167,12 +167,22 @@ class ConcatTreeSplitter(object):
                 kill_nodes.append(node.name)
                 unique_id = 0
 
+                for x in node.parents:
+                    x.del_child(node)
+
                 inputs = node.parents
                 temp_inputs = []
                 for maybe_pair in list(chunks_of(2, inputs)):
                     if len(maybe_pair) == 2:
                         new_node = IRNode(node.name+'_split_'+str(unique_id), LayerKind.Concat)
                         new_node.layer = node.layer
+
+                        for x in maybe_pair[0].children:
+                            maybe_pair[0].del_child(x)
+
+                        for x in maybe_pair[1].children:
+                            maybe_pair[1].del_child(x)
+
                         new_node.add_parent(maybe_pair[0])
                         new_node.add_parent(maybe_pair[1])
                         c_in_l = maybe_pair[0].output_shape[1]
@@ -197,8 +207,6 @@ class ConcatTreeSplitter(object):
                             root_node.add_child(x)
                         finished_nodes.append(root_node)
 
-                for x in node.parents:
-                    x.del_child(node)
                 new_subgraphs += finished_nodes
 
         newGraph = graph.replaced([n for n in graph.nodes+new_subgraphs if n.name not in kill_nodes])
