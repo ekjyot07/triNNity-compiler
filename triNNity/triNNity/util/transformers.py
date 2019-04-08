@@ -174,61 +174,55 @@ class ConcatTreeSplitter(object):
                 outputs = node.children
 
                 temp_inputs = []
-                for maybe_pair in list(chunks_of(2, inputs)):
-                    if len(maybe_pair) == 2:
-                        new_node = IRNode(node.name+'_split_'+str(unique_id), LayerKind.Concat)
-                        new_node.layer = node.layer
+                while len(inputs) > 1:
+                    for maybe_pair in list(chunks_of(2, inputs)):
+                        if len(maybe_pair) == 2:
+                            new_node = IRNode(node.name+'_split_'+str(unique_id), LayerKind.Concat)
+                            new_node.layer = node.layer
 
-                        for x in maybe_pair[0].children:
-                            maybe_pair[0].del_child(x)
+                            for x in maybe_pair[0].children:
+                                maybe_pair[0].del_child(x)
+                                if self.verbose:
+                                    print("Removing edge " + maybe_pair[0].name + " -> " + x.name)
+
+                            for x in maybe_pair[1].children:
+                                maybe_pair[1].del_child(x)
+                                if self.verbose:
+                                    print("Removing edge " + maybe_pair[1].name + " -> " + x.name)
+
+                            new_node.add_parent(maybe_pair[0])
                             if self.verbose:
-                                print("Removing edge " + maybe_pair[0].name + " -> " + x.name)
+                                print("Adding edge " + maybe_pair[0].name + " -> " + new_node.name)
 
-                        for x in maybe_pair[1].children:
-                            maybe_pair[1].del_child(x)
+                            new_node.add_parent(maybe_pair[1])
                             if self.verbose:
-                                print("Removing edge " + maybe_pair[1].name + " -> " + x.name)
+                                print("Adding edge " + maybe_pair[1].name + " -> " + new_node.name)
 
-                        new_node.add_parent(maybe_pair[0])
-                        if self.verbose:
-                            print("Adding edge " + maybe_pair[0].name + " -> " + new_node.name)
-
-                        new_node.add_parent(maybe_pair[1])
-                        if self.verbose:
-                            print("Adding edge " + maybe_pair[1].name + " -> " + new_node.name)
-
-                        c_in_l = maybe_pair[0].output_shape[1]
-                        c_in_r = maybe_pair[1].output_shape[1]
-                        h_o = maybe_pair[0].output_shape[2]
-                        w_o = maybe_pair[0].output_shape[3]
-                        new_node.output_shape = TensorShape(node.output_shape[0], c_in_l+c_in_r, h_o, w_o)
-                        temp_inputs.append(new_node)
-                        unique_id += 1
-                        finished_nodes.append(new_node)
-                    else:
-                        temp_inputs.append(maybe_pair[0])
+                            c_in_l = maybe_pair[0].output_shape[1]
+                            c_in_r = maybe_pair[1].output_shape[1]
+                            h_o = maybe_pair[0].output_shape[2]
+                            w_o = maybe_pair[0].output_shape[3]
+                            new_node.output_shape = TensorShape(node.output_shape[0], c_in_l+c_in_r, h_o, w_o)
+                            temp_inputs.append(new_node)
+                            unique_id += 1
+                            finished_nodes.append(new_node)
+                        else:
+                            temp_inputs.append(maybe_pair[0])
 
                     inputs = temp_inputs
                     temp_inputs = []
 
-                    if len(inputs) == 1:
-                        # this node is the new root
-                        root_node = inputs[0]
-                        for x in outputs:
-                            x.del_parent(node)
-                            if self.verbose:
-                                print("Removing edge " + node.name + " -> " + x.name)
-                            x.add_parent(root_node)
-                            if self.verbose:
-                                print("Adding edge " + root_node.name + " -> " + x.name)
-                        finished_nodes.append(root_node)
+                new_root_node = inputs[0]
+                for x in outputs:
+                    x.del_parent(node)
+                    if self.verbose:
+                        print("Removing edge " + node.name + " -> " + x.name)
+                    x.add_parent(new_root_node)
+                    if self.verbose:
+                        print("Adding edge " + new_root_node.name + " -> " + x.name)
+                finished_nodes.append(new_root_node)
 
                 new_subgraphs += finished_nodes
-
-                for x in node.parents:
-                    x.del_child(node)
-                    if self.verbose:
-                        print("Removing edge " + x.name + " -> " + node.name)
 
         graph.deadnames += kill_nodes
         newGraph = graph.replaced([n for n in graph.nodes+new_subgraphs if n.name not in graph.deadnames])
