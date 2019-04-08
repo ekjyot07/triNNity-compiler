@@ -163,11 +163,11 @@ class ConcatTreeSplitter(object):
         kill_nodes = []
         for node in graph.nodes:
             if node.kind == LayerKind.Concat and len(node.parents) > 2:
+                kill_nodes.append(node.name)
                 worklist = list(chunks_of(2, node.parents))
                 unique_id = 0
-                finished_nodes = []
                 while len(worklist) > 0:
-                    new_nodes = []
+                    new_worklist = []
                     for maybe_pair in worklist:
                         if len(maybe_pair) == 2:
                             new_node = IRNode(node.name+'_split_'+str(unique_id), LayerKind.Concat)
@@ -179,44 +179,21 @@ class ConcatTreeSplitter(object):
                             h_o = maybe_pair[0].output_shape[2]
                             w_o = maybe_pair[0].output_shape[3]
                             new_node.output_shape = TensorShape(node.output_shape[0], c_in_l+c_in_r, h_o, w_o)
-                            new_nodes.append(new_node)
-                            print_stderr("Inserting new split concat node: " + str(new_node))
+                            new_worklist.append(new_node)
                             unique_id += 1
-
-                    worklist = [x for x in worklist if len(x) < 2]
-
-                    if len(worklist) == 0:
-                        if len(new_nodes) > 1:
-                            # We have more concatenations to do
-                            finished_nodes += new_nodes
-                            worklist = list(chunks_of(2, new_nodes))
                         else:
-                            # worklist empty and only one new node
-                            # this node is the new root
-                            root_node = new_nodes[0]
-                            for x in node.children:
-                                x.del_parent(node)
-                                root_node.add_child(x)
-                            finished_nodes.append(root_node)
-                    else:
-                        # We have a leftover node in the worklist
-                        assert(len(worklist) == 1)
-                        if len(new_nodes) > 1:
-                            # We have more concatenations to do
-                            finished_nodes += new_nodes
-                            worklist = list(chunks_of(2, new_nodes + worklist[0]))
-                        else:
-                            # worklist has one node and we have no new nodes
-                            # this node is the new root
-                            root_node = worklist[0][0]
-                            for x in node.children:
-                                x.del_parent(node)
-                                root_node.add_child(x)
-                            finished_nodes.append(root_node)
-                            worklist = []
+                            new_worklist.append(maybe_pair)
 
-                print_stderr('Removing multiway concat node: ' + str(node))
-                kill_nodes.append(node.name)
+                    worklist = new_worklist
+
+                    if len(worklist) == 1:
+                        # this node is the new root
+                        root_node = worklist[0][0]
+                        for x in node.children:
+                            x.del_parent(node)
+                            root_node.add_child(x)
+                        finished_nodes.append(root_node)
+
                 for x in node.parents:
                     x.del_child(node)
                 new_subgraphs += finished_nodes
