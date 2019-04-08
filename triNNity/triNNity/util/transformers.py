@@ -209,8 +209,9 @@ class ConcatTreeSplitter(object):
 
                 new_subgraphs += finished_nodes
 
-        newGraph.deadnames += kill_nodes
-        newGraph = graph.replaced([n for n in graph.nodes+new_subgraphs if n.name not in newGraph.deadnames])
+        graph.deadnames += kill_nodes
+        newGraph = graph.replaced([n for n in graph.nodes+new_subgraphs if n.name not in graph.deadnames])
+        newGraph.deadnames = graph.deadnames
         return newGraph
 
 
