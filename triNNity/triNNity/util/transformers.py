@@ -216,7 +216,7 @@ class ConcatTreeSplitter(object):
                 if self.verbose:
                     print("Rewiring " + str(len(outputs)) + " output edges: " + str(outputs))
 
-                for x in outputs:
+                for x in list(outputs):
                     print(str(x))
                     x.del_parent(node)
                     if self.verbose:
