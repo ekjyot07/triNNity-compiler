@@ -341,7 +341,7 @@ def convert_optimizer_info(def_path, caffemodel_path, topo_output_path, layer_ou
             e_sink = nodes.index(b)
             src_out.write(str(e_src) + ' -> ' + str(e_sink) + ';\n')
           except:
-            print_stderr("Missing node for edge " + a + " -> " b)
+            print_stderr("Missing node for edge " + a + " -> " + b)
 
         src_out.write('}')
 
