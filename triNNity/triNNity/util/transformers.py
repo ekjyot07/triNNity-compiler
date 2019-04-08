@@ -167,10 +167,11 @@ class ConcatTreeSplitter(object):
                 kill_nodes.append(node.name)
                 unique_id = 0
 
+                inputs = node.parents
+
                 for x in node.parents:
                     x.del_child(node)
 
-                inputs = node.parents
                 temp_inputs = []
                 for maybe_pair in list(chunks_of(2, inputs)):
                     if len(maybe_pair) == 2:
