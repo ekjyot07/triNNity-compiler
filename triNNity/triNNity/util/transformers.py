@@ -215,6 +215,7 @@ class ConcatTreeSplitter(object):
                 new_root_node = inputs[0]
                 if self.verbose:
                     print("Rewiring output edges: " + str(outputs))
+
                 for x in outputs:
                     x.del_parent(node)
                     if self.verbose:
@@ -222,7 +223,10 @@ class ConcatTreeSplitter(object):
                     x.add_parent(new_root_node)
                     if self.verbose:
                         print("Adding edge " + new_root_node.name + " -> " + x.name)
+
                 finished_nodes.append(new_root_node)
+                if self.verbose:
+                    print("Done splitting multiway concat node " + node.name)
 
                 new_subgraphs += finished_nodes
 
