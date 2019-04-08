@@ -213,6 +213,8 @@ class ConcatTreeSplitter(object):
                     temp_inputs = []
 
                 new_root_node = inputs[0]
+                if self.verbose:
+                    print("Rewiring output edges: " + str(outputs))
                 for x in outputs:
                     x.del_parent(node)
                     if self.verbose:
