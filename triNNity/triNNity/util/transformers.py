@@ -158,6 +158,9 @@ class ConcatTreeSplitter(object):
     A helper for splitting concat layers into trees of pairwise concatenations
     '''
 
+    def __init__(self, verbose=False):
+        self.verbose = verbose
+
     def __call__(self, graph):
         new_subgraphs = []
         kill_nodes = []
@@ -172,6 +175,8 @@ class ConcatTreeSplitter(object):
 
                 for x in node.parents:
                     x.del_child(node)
+                    if self.verbose:
+                        print("Removing edge " + x.name + " -> " + node.name)
 
                 temp_inputs = []
                 for maybe_pair in list(chunks_of(2, inputs)):
@@ -206,7 +211,11 @@ class ConcatTreeSplitter(object):
                         root_node = inputs[0]
                         for x in outputs:
                             x.del_parent(node)
+                            if self.verbose:
+                                print("Removing edge " + node.name + " -> " + x.name)
                             x.add_parent(root_node)
+                            if self.verbose:
+                                print("Adding edge " + root_node.name + " -> " + x.name)
                         finished_nodes.append(root_node)
 
                 new_subgraphs += finished_nodes

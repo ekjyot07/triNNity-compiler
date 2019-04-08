@@ -345,7 +345,7 @@ class InfoTransformer(object):
             NodeRenamer(lambda node: node.name.replace('/', '_')),
 
             # Split concat operations into balanced binary trees
-            ConcatTreeSplitter()
+            ConcatTreeSplitter(self.verbose)
         ]
         self.graph = graph.transformed(transformers)
 
