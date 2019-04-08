@@ -168,6 +168,7 @@ class ConcatTreeSplitter(object):
                 unique_id = 0
 
                 inputs = node.parents
+                outputs = node.children
 
                 for x in node.parents:
                     x.del_child(node)
@@ -203,9 +204,10 @@ class ConcatTreeSplitter(object):
                     if len(inputs) == 1:
                         # this node is the new root
                         root_node = inputs[0]
-                        for x in node.children:
+                        for x in outputs:
                             x.del_parent(node)
                             root_node.add_child(x)
+                            x.add_parent(root_node)
                         finished_nodes.append(root_node)
 
                 new_subgraphs += finished_nodes
