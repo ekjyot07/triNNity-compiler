@@ -173,11 +173,6 @@ class ConcatTreeSplitter(object):
                 inputs = node.parents
                 outputs = node.children
 
-                for x in node.parents:
-                    x.del_child(node)
-                    if self.verbose:
-                        print("Removing edge " + x.name + " -> " + node.name)
-
                 temp_inputs = []
                 for maybe_pair in list(chunks_of(2, inputs)):
                     if len(maybe_pair) == 2:
@@ -229,6 +224,11 @@ class ConcatTreeSplitter(object):
                         finished_nodes.append(root_node)
 
                 new_subgraphs += finished_nodes
+
+                for x in node.parents:
+                    x.del_child(node)
+                    if self.verbose:
+                        print("Removing edge " + x.name + " -> " + node.name)
 
         graph.deadnames += kill_nodes
         newGraph = graph.replaced([n for n in graph.nodes+new_subgraphs if n.name not in graph.deadnames])
