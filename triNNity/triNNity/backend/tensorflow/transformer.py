@@ -55,11 +55,9 @@ class TensorFlowNode(object):
         if self.kwargs:
             args += [(self.pair(k, v)) for k, v in self.kwargs]
         # Set the node name
+        args.append(self.pair('name', self.node.name))
         args = ', '.join(args)
-        # Get inputs
-        inputs = [x.name for x in self.node.parents]
-        inputs = ', '.join(inputs)
-        return '%s = tf.keras.layers.%s(%s)(%s)' % (self.node.name, self.op, args, inputs)
+        return '%s(%s)' % (self.op, args)
 
 
 class MaybeActivated(object):
@@ -97,18 +95,18 @@ class TensorFlowMapper(IRNodeMapper):
             kwargs['biased'] = False
         assert kernel_params.kernel_h == h
         assert kernel_params.kernel_w == w
-        return MaybeActivated(node)('Conv2D', kernel_params.kernel_h, kernel_params.kernel_w, c_o,
+        return MaybeActivated(node)('conv', kernel_params.kernel_h, kernel_params.kernel_w, c_o,
                                     kernel_params.stride_h, kernel_params.stride_w, **kwargs)
 
     def map_relu(self, node):
-        return TensorFlowNode('ReLU')
+        return TensorFlowNode('relu')
 
     def map_pooling(self, node):
         pool_type = node.parameters.pool
         if pool_type == 0:
-            pool_op = 'MaxPooling2D'
+            pool_op = 'max_pool'
         elif pool_type == 1:
-            pool_op = 'AveragePooling2D'
+            pool_op = 'avg_pool'
         else:
             # Stochastic pooling, for instance.
             raise CompilerError('Unsupported pooling type.')
@@ -121,38 +119,41 @@ class TensorFlowMapper(IRNodeMapper):
         assert node.parameters.axis == 1
         #TODO: Unbiased
         assert node.parameters.bias_term == True
-        return MaybeActivated(node)('Dense', node.parameters.num_output)
+        return MaybeActivated(node)('fc', node.parameters.num_output)
 
     def map_softmax(self, node):
-        return TensorFlowNode('Softmax')
+        return TensorFlowNode('softmax')
 
     def map_lrn(self, node):
-        print('Warning: tf.keras does not support local response normalization layer')
-        return TensorFlowNode('Identity')
+        params = node.parameters
+        # The window size must be an odd value. For a window
+        # size of (2*n+1), TensorFlow defines depth_radius = n.
+        assert params.local_size % 2 == 1
+        # Caffe scales by (alpha/(2*n+1)), whereas TensorFlow
+        # just scales by alpha (as does Krizhevsky's paper).
+        # We'll account for that here.
+        alpha = params.alpha / float(params.local_size)
+        return TensorFlowNode('lrn', int(params.local_size / 2), alpha, params.beta)
 
     def map_concat(self, node):
         axis = (2, 3, 1, 0)[node.parameters.axis]
-        return TensorFlowNode('Concat', axis)
+        return TensorFlowNode('concat', axis)
 
     def map_dropout(self, node):
-        return TensorFlowNode('Dropout', node.parameters.dropout_ratio)
+        return TensorFlowNode('dropout', node.parameters.dropout_ratio)
 
     def map_batch_norm(self, node):
         scale_offset = len(node.data) == 4
         kwargs = {} if scale_offset else {'scale_offset': False}
-        return MaybeActivated(node, default=False)('BatchNorm', **kwargs)
+        return MaybeActivated(node, default=False)('batch_normalization', **kwargs)
 
     def map_eltwise(self, node):
-        operations = {0: 'Multiply', 1: 'Add', 2: 'Max'}
+        operations = {0: 'multiply', 1: 'add', 2: 'max'}
         op_code = node.parameters.operation
         try:
             return TensorFlowNode(operations[op_code])
         except KeyError:
             raise CompilerError('Unknown elementwise operation: {}'.format(op_code))
-
-    def map_flatten(self, node):
-        axis = (2, 3, 1, 0)[node.parameters.axis]
-        return TensorFlowNode('Flatten', axis)
 
     def commit(self, chains):
         return chains
@@ -174,21 +175,30 @@ class TensorFlowEmitter(object):
         return self.prefix + s + '\n'
 
     def emit_imports(self):
-        return self.statement('import tensorflow as tf\n')
+        return self.statement('')
 
-    def emit_def(self, name):
-        return self.statement('{} = tf.keras.Model(inputs=inputs, outputs=outputs)'.format(name))
+    def emit_class_def(self, name):
+        return self.statement('class %s(Network):' % (name))
+
+    def emit_setup_def(self):
+        return self.statement('def setup(self):')
 
     def emit_parents(self, chain):
         assert len(chain)
-        s = ', '.join(["%s" % parent.name for parent in chain[0].node.parents])
-        return self.statement('(' + s + ')')
+        s = '(self.feed('
+        sep = ', \n' + self.prefix + (' ' * len(s))
+        s += sep.join(["'%s'" % parent.name for parent in chain[0].node.parents])
+        return self.statement(s + ')')
 
     def emit_node(self, node):
-        return self.statement(' ' * 5 + node.emit())
+        return self.statement(' ' * 5 + '.' + node.emit())
 
     def emit(self, name, chains):
         s = self.emit_imports()
+        s += self.emit_class_def(name)
+        self.indent()
+        s += self.emit_setup_def()
+        self.indent()
         blocks = []
         for chain in chains:
             b = ''
@@ -197,7 +207,6 @@ class TensorFlowEmitter(object):
                 b += self.emit_node(node)
             blocks.append(b[:-1] + ')')
         s = s + '\n\n'.join(blocks)
-        s += self.emit_def(name)
         return s
 
 
