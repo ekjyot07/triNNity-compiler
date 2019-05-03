@@ -409,15 +409,24 @@ class ListImageProducer(ImageProducer):
         super(ImageNetProducer, self).__init__(image_paths=image_paths,
                                                data_spec=data_spec,
                                                labels=labels)
-
 '''
 
 runtime_main = '''
+
 if __name__ == "__main__":
-  val_path = args[1]
-  data_path = args[2]
-  image_source = ListImageProducer(val_path, data_path, DataSpec({}, {}, {}, {}, {}, {}, {}))
-  validate({}, {}, {}, {})
+  import sys
+  val_path = sys.args[1]
+  data_path = sys.args[2]
+  top_k = sys.args[3]
+  spec = DataSpec({}, {}, {}, {}, {}, {}, {})
+  image_source = ListImageProducer(val_path, data_path, spec)
+
+  input_node = tf.placeholder(tf.float32,
+                              shape=(None, spec.crop_size, spec.crop_size, spec.channels))
+
+  net = {}({'data': input_node})
+
+  validate(net, {}, image_source, top_k)
 '''
 
 class TensorFlowRuntime(object):
@@ -425,7 +434,7 @@ class TensorFlowRuntime(object):
     def __init__(self, output):
         self.output = output
 
-    def generate(self, code):
+    def generate(self, code, net_name):
       self.output.write(runtime_header)
       self.output.write(code)
-      self.output.write(runtime_main)
+      self.output.write(runtime_main.format(net_name))
