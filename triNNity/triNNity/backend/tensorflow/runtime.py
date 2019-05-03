@@ -1,3 +1,5 @@
+
+runtime_header = '''
 import argparse
 import numpy as np
 import tensorflow as tf
@@ -231,7 +233,6 @@ class Network(object):
         return tf.nn.dropout(input, keep, name=name)
 
 def validate(net, model_path, image_producer, top_k=5):
-    spec = models.get_data_spec(model_instance=net)
     input_node = net.inputs['data']
     label_node = tf.placeholder(tf.int32)
     probs = net.get_output()
@@ -408,3 +409,23 @@ class ListImageProducer(ImageProducer):
         super(ImageNetProducer, self).__init__(image_paths=image_paths,
                                                data_spec=data_spec,
                                                labels=labels)
+
+'''
+
+runtime_main = '''
+if __name__ == "__main__":
+  val_path = args[1]
+  data_path = args[2]
+  image_source = ListImageProducer(val_path, data_path, DataSpec({}, {}, {}, {}, {}, {}, {}))
+  validate({}, {}, {}, {})
+'''
+
+class TensorFlowRuntime(object):
+
+    def __init__(self, output):
+        self.output = output
+
+    def generate(code):
+      self.output.write(runtime_header)
+      self.output.write(code)
+      self.output.write(runtime_main)
