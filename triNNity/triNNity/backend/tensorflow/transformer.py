@@ -218,7 +218,6 @@ class TensorFlowTransformer(object):
         self.load(def_path, data_path, phase)
         self.params = None
         self.source = None
-        self.graph = None
 
     def load(self, def_path, data_path, phase):
         # Build the graph
