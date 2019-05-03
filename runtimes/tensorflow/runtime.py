@@ -392,7 +392,7 @@ class ImageProducer(object):
     def __len__(self):
         return len(self.image_paths)
 
-class ImageNetProducer(ImageProducer):
+class ListImageProducer(ImageProducer):
 
     def __init__(self, val_path, data_path, data_spec):
         # Read in the ground truth labels for the validation set
