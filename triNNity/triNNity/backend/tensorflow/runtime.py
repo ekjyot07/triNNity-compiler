@@ -425,7 +425,7 @@ class TensorFlowRuntime(object):
     def __init__(self, output):
         self.output = output
 
-    def generate(code):
+    def generate(self, code):
       self.output.write(runtime_header)
       self.output.write(code)
       self.output.write(runtime_main)
