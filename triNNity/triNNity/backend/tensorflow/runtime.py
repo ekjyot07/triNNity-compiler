@@ -414,19 +414,23 @@ class ListImageProducer(ImageProducer):
 runtime_main = '''
 
 if __name__ == "__main__":
-  import sys
-  val_path = sys.args[1]
-  data_path = sys.args[2]
-  top_k = sys.args[3]
+  parser = argparse.ArgumentParser()
+  parser.add_argument('weights', help='Path to the converted weights (.npy)')
+  parser.add_argument('image_list', help='Path to validation set ground truth (.txt)')
+  parser.add_argument('data_dir', help='Path to validation set images directory')
+  parser.add_argument('top_k', help='Value to use for top-N')
+  args = parser.parse_args()
+
   spec = DataSpec({}, {}, {}, {}, {}, {}, {})
-  image_source = ListImageProducer(val_path, data_path, spec)
+
+  image_source = ListImageProducer(args.image_list, args.data_dir, spec)
 
   input_node = tf.placeholder(tf.float32,
                               shape=(None, spec.crop_size, spec.crop_size, spec.channels))
 
   net = {}({'data': input_node})
 
-  validate(net, {}, image_source, top_k)
+  validate(net, args.weights, image_source, args.top_k)
 '''
 
 class TensorFlowRuntime(object):
