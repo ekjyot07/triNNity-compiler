@@ -123,11 +123,8 @@ class ARMCLRuntime(object):
       self.output.write('\n')
       self.output.write('int main(int argc, char **argv) {\n')
       self.output.write('\n\n')
-      self.output.write('arm_compute::CLScheduler::get().default_init();\n\n')
-      self.output.write(code[1])
-      self.output.write('\n')
-      self.output.write(code[2])
+      self.output.write('  arm_compute::CLScheduler::get().default_init();\n\n')
       self.output.write(main_code_preamble_A)
-      self.output.write(code[3])
+
       self.output.write(main_code_preamble_B)
       self.output.write(main_code_postamble)
