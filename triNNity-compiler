@@ -32,7 +32,7 @@ def convert_tensorflow(def_path, caffemodel_path, data_output_path, code_output_
   try:
     from triNNity.backend.tensorflow import TensorFlowTransformer, TensorFlowRuntime
     transformer = TensorFlowTransformer(def_path, caffemodel_path, verbose=verbose, phase=phase)
-    print_stderr('Compiling for backend: tensorflow')
+    print_stderr('Compiling for backend: TensorFlow')
 
     if caffemodel_path is not None:
       print_stderr('Converting weights...')
@@ -43,55 +43,16 @@ def convert_tensorflow(def_path, caffemodel_path, data_output_path, code_output_
     if code_output_path:
       print_stderr('Generating code for model...')
       with open(code_output_path, 'w') as src_out:
+        tsrc = transformer.transform_source()
         runtime = TensorFlowRuntime(src_out)
-        runtime.generate(transformer.transform_source()[0], transformer.graph.name)
+        runtime.generate(tsrc, transformer.graph.name)
     print_stderr('Done.')
   except CompilerError as err:
     fatal_error('Error encountered: {}'.format(err))
 
 def convert_trinnity(def_path, caffemodel_path, data_output_path, code_output_path, phase, verbose):
-  preamble = '''#include <chrono>
-#include <iostream>
-#include <algorithm>
-#include <triNNity/layer.h>
-#include <triNNity/generic/layer.h>
-#include <triNNity/dense/cpu/layer.h>
-
-#ifndef GEMM_TYPE
-#define GEMM_TYPE triNNity::GEMM_BLAS
-#endif
-
-#ifndef GEMV_TYPE
-#define GEMV_TYPE triNNity::GEMV_BLAS
-#endif
-
-'''
-
-  main_code_preamble_A = '''  unsigned times[NO_OF_RUNS];
-
-  auto t1 = std::chrono::high_resolution_clock::now();
-
-  for (unsigned i = 0; i < NO_OF_RUNS; i++) {
-'''
-
-  main_code_preamble_B = '''
-    auto t2 = std::chrono::high_resolution_clock::now();
-    times[i] = std::chrono::duration_cast<std::chrono::nanoseconds>(t2-t1).count();
-    t1 = t2;
-  }
-
-  for (unsigned i = 0; i < NO_OF_RUNS; i++) {
-    std::cout << times[i] << std::endl;
-  }
-  '''
-
-  main_code_postamble = '''
-  return 0;
-}
-  '''
-
   try:
-    from triNNity.backend.triNNity import TrinnityTransformer
+    from triNNity.backend.triNNity import TrinnityTransformer, TrinnityRuntime
     transformer = TrinnityTransformer(def_path, caffemodel_path, verbose=verbose, phase=phase)
     print_stderr('Compiling for backend: triNNity')
 
@@ -108,76 +69,17 @@ def convert_trinnity(def_path, caffemodel_path, data_output_path, code_output_pa
       print_stderr('Generating code for model...')
       with open(code_output_path, 'w') as src_out:
         tsrc = transformer.transform_source()
-        src_out.write(preamble)
-        src_out.write('\n')
-        src_out.write(tsrc[0])
-        src_out.write('\n')
-        src_out.write('int main(int argc, char **argv) {\n')
-        src_out.write('\n')
-        src_out.write(tsrc[1])
-        src_out.write('  data = new ACTIVATION_TYPE[{}]();'.format(transformer.data_size))
-        src_out.write('\n  ')
-        src_out.write('\n  '.join(map(str, (list(map(lambda x: '{} = new {}[{}]();'.format(x[0], x[2], x[3]), transformer.declarations))))))
-        src_out.write('\n')
-        src_out.write('\n')
-        src_out.write(tsrc[2])
-        src_out.write(main_code_preamble_A)
-        src_out.write(tsrc[3])
-        src_out.write(main_code_preamble_B)
-        src_out.write('\n')
-        src_out.write('  std::cerr << "Classification:" << std::endl;')
-        src_out.write('  std::for_each(' + str(transformer.output_node_name) + '->output, ' + str(transformer.output_node_name) + '->output+' + str(transformer.labels) + ', [](auto &x){ std::cerr << x << std::endl; });')
-        src_out.write('  delete [] data;')
-        src_out.write(main_code_postamble)
+        runtime = TrinnityRuntime(src_out)
+        runtime.generate(tsrc, transformer)
     print_stderr('Done.')
   except CompilerError as err:
     fatal_error('Error encountered: {}'.format(err))
 
 def convert_armcl(def_path, caffemodel_path, data_output_path, code_output_path, phase, verbose):
-  preamble = '''#include <chrono>
-#include <iostream>
-#include <algorithm>
-#include <triNNity/layer.h>
-#include <triNNity/generic/layer.h>
-#include <triNNity/wrappers/armcl/layer.h>
-
-#ifndef GEMM_TYPE
-#define GEMM_TYPE triNNity::GEMM_BLAS
-#endif
-
-#ifndef GEMV_TYPE
-#define GEMV_TYPE triNNity::GEMV_BLAS
-#endif
-
-'''
-
-  main_code_preamble_A = '''  unsigned times[NO_OF_RUNS];
-
-  auto t1 = std::chrono::high_resolution_clock::now();
-
-  for (unsigned i = 0; i < NO_OF_RUNS; i++) {
-'''
-
-  main_code_preamble_B = '''
-    auto t2 = std::chrono::high_resolution_clock::now();
-    times[i] = std::chrono::duration_cast<std::chrono::nanoseconds>(t2-t1).count();
-    t1 = t2;
-  }
-
-  for (unsigned i = 0; i < NO_OF_RUNS; i++) {
-    std::cout << times[i] << std::endl;
-  }
-  '''
-
-  main_code_postamble = '''
-  return 0;
-}
-  '''
-
   try:
-    from triNNity.backend.triNNity import TrinnityTransformer
-    transformer = TrinnityTransformer(def_path, caffemodel_path, verbose=verbose, phase=phase)
-    print_stderr('Compiling for backend: triNNity')
+    from triNNity.backend.armcl import ARMCLTransformer, ARMCLRuntime
+    transformer = ARMCLTransformer(def_path, caffemodel_path, verbose=verbose, phase=phase)
+    print_stderr('Compiling for backend: ARMCL')
 
     if caffemodel_path is not None:
       print_stderr('Converting weights...')
@@ -192,78 +94,17 @@ def convert_armcl(def_path, caffemodel_path, data_output_path, code_output_path,
       print_stderr('Generating code for model...')
       with open(code_output_path, 'w') as src_out:
         tsrc = transformer.transform_source()
-        src_out.write(preamble)
-        src_out.write('\n')
-        src_out.write(tsrc[0])
-        src_out.write('\n')
-        src_out.write('int main(int argc, char **argv) {\n')
-        src_out.write('\n\n')
-        src_out.write('arm_compute::CLScheduler::get().default_init();\n\n')
-        src_out.write(tsrc[1])
-        src_out.write('  data = new ACTIVATION_TYPE[{}]();'.format(transformer.data_size))
-        src_out.write('\n  ')
-        src_out.write('\n  '.join(map(str, (list(map(lambda x: '{} = new {}[{}]();'.format(x[0], x[2], x[3]), transformer.declarations))))))
-        src_out.write('\n')
-        src_out.write('\n')
-        src_out.write(tsrc[2])
-        src_out.write(main_code_preamble_A)
-        src_out.write(tsrc[3])
-        src_out.write(main_code_preamble_B)
-        src_out.write('\n')
-        src_out.write('  std::cerr << "Classification:" << std::endl;')
-        src_out.write('  std::for_each(' + str(transformer.output_node_name) + '->output, ' + str(transformer.output_node_name) + '->output+' + str(transformer.labels) + ', [](auto &x){ std::cerr << x << std::endl; });')
-        src_out.write('  delete [] data;')
-        src_out.write(main_code_postamble)
+        runtime = ARMCLRuntime(src_out)
+        runtime.generate(tsrc, transformer)
     print_stderr('Done.')
   except CompilerError as err:
     fatal_error('Error encountered: {}'.format(err))
 
-
 def convert_mkldnn(def_path, caffemodel_path, data_output_path, code_output_path, phase, verbose):
-  preamble = '''#include <chrono>
-#include <iostream>
-#include <algorithm>
-#include <triNNity/layer.h>
-#include <triNNity/generic/layer.h>
-#include <triNNity/wrappers/mkldnn/layer.h>
-
-#ifndef GEMM_TYPE
-#define GEMM_TYPE triNNity::GEMM_BLAS
-#endif
-
-#ifndef GEMV_TYPE
-#define GEMV_TYPE triNNity::GEMV_BLAS
-#endif
-
-'''
-
-  main_code_preamble_A = '''  unsigned times[NO_OF_RUNS];
-
-  auto t1 = std::chrono::high_resolution_clock::now();
-
-  for (unsigned i = 0; i < NO_OF_RUNS; i++) {
-'''
-
-  main_code_preamble_B = '''
-    auto t2 = std::chrono::high_resolution_clock::now();
-    times[i] = std::chrono::duration_cast<std::chrono::nanoseconds>(t2-t1).count();
-    t1 = t2;
-  }
-
-  for (unsigned i = 0; i < NO_OF_RUNS; i++) {
-    std::cout << times[i] << std::endl;
-  }
-  '''
-
-  main_code_postamble = '''
-  return 0;
-}
-  '''
-
   try:
-    from triNNity.backend.triNNity import TrinnityTransformer
-    transformer = TrinnityTransformer(def_path, caffemodel_path, verbose=verbose, phase=phase)
-    print_stderr('Compiling for backend: triNNity')
+    from triNNity.backend.mkldnn import MKLDNNTransformer, MKLDNNRuntime
+    transformer = MKLDNNTransformer(def_path, caffemodel_path, verbose=verbose, phase=phase)
+    print_stderr('Compiling for backend: MKLDNN')
 
     if caffemodel_path is not None:
       print_stderr('Converting weights...')
@@ -278,27 +119,8 @@ def convert_mkldnn(def_path, caffemodel_path, data_output_path, code_output_path
       print_stderr('Generating code for model...')
       with open(code_output_path, 'w') as src_out:
         tsrc = transformer.transform_source()
-        src_out.write(preamble)
-        src_out.write('\n')
-        src_out.write(tsrc[0])
-        src_out.write('\n')
-        src_out.write('int main(int argc, char **argv) {\n')
-        src_out.write('\n')
-        src_out.write(tsrc[1])
-        src_out.write('  data = new ACTIVATION_TYPE[{}]();'.format(transformer.data_size))
-        src_out.write('\n  ')
-        src_out.write('\n  '.join(map(str, (list(map(lambda x: '{} = new {}[{}]();'.format(x[0], x[2], x[3]), transformer.declarations))))))
-        src_out.write('\n')
-        src_out.write('\n')
-        src_out.write(tsrc[2])
-        src_out.write(main_code_preamble_A)
-        src_out.write(tsrc[3])
-        src_out.write(main_code_preamble_B)
-        src_out.write('\n')
-        src_out.write('  std::cerr << "Classification:" << std::endl;')
-        src_out.write('  std::for_each(' + str(transformer.output_node_name) + '->output, ' + str(transformer.output_node_name) + '->output+' + str(transformer.labels) + ', [](auto &x){ std::cerr << x << std::endl; });')
-        src_out.write('  delete [] data;')
-        src_out.write(main_code_postamble)
+        runtime = MKLDNNRuntime(src_out)
+        runtime.generate(tsrc, transformer)
     print_stderr('Done.')
   except CompilerError as err:
     fatal_error('Error encountered: {}'.format(err))
@@ -332,10 +154,8 @@ def convert_optimizer_info(def_path, caffemodel_path, topo_output_path, layer_ou
         node_indices = range(0, len(nodes))
         edges = tsrc[4]
         src_out.write('strict digraph "' + transformer.graph.name + '" {\n')
-
         for (k, v) in zip(node_indices, nodes):
           src_out.write(str(k) + ' [label=' + v + '];\n')
-
         for (a, b) in edges:
           try:
             e_src = nodes.index(a)
@@ -343,9 +163,7 @@ def convert_optimizer_info(def_path, caffemodel_path, topo_output_path, layer_ou
             src_out.write(str(e_src) + ' -> ' + str(e_sink) + ';\n')
           except:
             print_stderr("Missing node for edge " + a + " -> " + b)
-
         src_out.write('}')
-
 
     print_stderr('Done.')
   except CompilerError as err:

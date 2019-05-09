@@ -1,4 +1,3 @@
-
 runtime_header = '''
 import argparse
 import numpy as np
@@ -440,5 +439,5 @@ class TensorFlowRuntime(object):
 
     def generate(self, code, net_name):
       self.output.write(runtime_header)
-      self.output.write(code)
+      self.output.write(code[0])
       self.output.write(runtime_main.format(net_name))
