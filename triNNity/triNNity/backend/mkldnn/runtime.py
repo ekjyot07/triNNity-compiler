@@ -15,14 +15,14 @@ preamble = '''#include <chrono>
 
 '''
 
-  main_code_preamble_A = '''  unsigned times[NO_OF_RUNS];
+main_code_preamble_A = '''  unsigned times[NO_OF_RUNS];
 
   auto t1 = std::chrono::high_resolution_clock::now();
 
   for (unsigned i = 0; i < NO_OF_RUNS; i++) {
 '''
 
-  main_code_preamble_B = '''
+main_code_preamble_B = '''
     auto t2 = std::chrono::high_resolution_clock::now();
     times[i] = std::chrono::duration_cast<std::chrono::nanoseconds>(t2-t1).count();
     t1 = t2;
@@ -33,7 +33,7 @@ preamble = '''#include <chrono>
   }
   '''
 
-  main_code_postamble = '''
+main_code_postamble = '''
   return 0;
 }
   '''
