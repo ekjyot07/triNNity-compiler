@@ -1,3 +1,5 @@
+from string import Template
+
 preamble = '''#include "arm_compute/graph.h"
 #include "support/ToolchainSupport.h"
 #include "utils/CommonGraphOptions.h"
@@ -8,11 +10,11 @@ using namespace arm_compute::utils;
 using namespace arm_compute::graph::frontend;
 using namespace arm_compute::graph_utils;
 
-class Graph{network}Example : public Example
+class Graph${network}Example : public Example
 {
 public:
-    Graph{network}Example()
-        : cmd_parser(), common_opts(cmd_parser), common_params(), graph(0, "{network}")
+    Graph${network}Example()
+        : cmd_parser(), common_opts(cmd_parser), common_params(), graph(0, "${network}")
     {
     }
     bool do_setup(int argc, char **argv) override
@@ -40,11 +42,11 @@ public:
         std::string data_path = common_params.data_path;
 
         // Create a preprocessor object
-        const std::array<float, 3> mean_rgb{ { {mean_r}, {mean_g}, {mean_b} } };
+        const std::array<float, 3> mean_rgb{ { ${mean_r}, ${mean_g}, ${mean_b} } };
         std::unique_ptr<IPreprocessor> preprocessor = arm_compute::support::cpp14::make_unique<CaffePreproccessor>(mean_rgb);
 
          // Create input descriptor
-        const TensorShape tensor_shape     = permute_shape(TensorShape({W}, {H}, {C}, {N}), DataLayout::NCHW, common_params.data_layout);
+        const TensorShape tensor_shape     = permute_shape(TensorShape(${W}, ${H}, ${C}, ${N}), DataLayout::NCHW, common_params.data_layout);
         TensorDescriptor  input_descriptor = TensorDescriptor(tensor_shape, common_params.data_type).set_layout(common_params.data_layout);
 
         // Set weights trained layout
@@ -110,10 +112,10 @@ class ARMCLRuntime(object):
 
     def generate(self, code, transformer):
       (in_N, in_C, in_H, in_W) = transformer.graph.get_node('data').output_shape
-      self.output.write(preamble.format(network=transformer.graph.name,
-                                    mean_r="122.68f", mean_g="116.67f", mean_b="104.01f",
-                                    W="{}U".format(in_W), H="{}U".format(in_H),
-                                    C="{}U".format(in_C), N="{}U".format(in_N)))
+      self.output.write(Template(preamble).substitute(network=transformer.graph.name,
+                                                      mean_r="122.68f", mean_g="116.67f", mean_b="104.01f",
+                                                      W="{}U".format(in_W), H="{}U".format(in_H),
+                                                      C="{}U".format(in_C), N="{}U".format(in_N)))
       self.output.write('\n')
       self.output.write(code[0])
       self.output.write('\n')
