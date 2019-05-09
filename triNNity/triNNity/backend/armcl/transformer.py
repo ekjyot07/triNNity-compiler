@@ -453,7 +453,8 @@ class ARMCLEmitter(object):
         # ~ i = self.emit_imports(name)
         # ~ i += '\n'
 
-        # ~ self.indent()
+        self.indent()
+
         # ~ d = self.statement('ACTIVATION_TYPE * data;')
 
         for chain in chains:
