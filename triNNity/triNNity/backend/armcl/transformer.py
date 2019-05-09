@@ -450,26 +450,14 @@ class ARMCLEmitter(object):
         self.collected_layers += [node.node.name + ".execute();"]
 
     def emit(self, name, chains):
-        # ~ i = self.emit_imports(name)
-        # ~ i += '\n'
-
         self.indent()
-
-        # ~ d = self.statement('ACTIVATION_TYPE * data;')
 
         for chain in chains:
             for node in chain:
                 self.emit_node(node)
 
-        # ~ d += ''.join(list(map(lambda x: self.statement(x[1]), self.collected_declarations)))
-        # ~ d += '\n'
-
-        c = ''.join(self.collected_code)
+        c = self.prefix.join(self.collected_code)
         c += '\n'
-
-        # ~ self.indent()
-        # ~ e = ''.join(list(map(lambda x: self.statement(x), self.collected_layers)))
-
         return [c]
 
 
