@@ -7,286 +7,108 @@ from triNNity.frontend.layers import LayerKind
 from triNNity.util.transformers import (DataInjector, DataReshaper, NodeRenamer, ReLUFuser, BatchNormScaleBiasFuser, BatchNormPreprocessor, ParameterNamer, ConcatTreeSplitter)
 
 class ARMCLNode(object):
-    '''An intermediate representation for ARMCL operations.'''
 
     def __init__(self, op, *args, **kwargs):
-        # A string corresponding to the ARMCL operation
+
         self.op = op
         self.orig_op = op
-        # Positional arguments for the operation
+
         self.args = args
-        # Keyword arguments for the operation
         self.kwargs = kwargs
-        # The source Caffe node
+
         self.node = None
-        # The name/decl of the input buffer
-        self.input_buffer = None
-        self.input_buffers = None
-        self.input_buffer_name = None
-        # The name/decl of the weights buffer
-        self.weights_buffer = None
-        self.weights_buffer_name = None
-        # The name/decl of the bias buffer
-        self.bias_buffer = None
-        self.bias_buffer_name = None
-        # The name/decl of the output buffer (only if not an in-place layer)
+
         self.output_buffer = None
         self.output_buffer_name = None
-        # Caffe has some layers that we need to process but basically ignore
+
         self.magic_layers = ['data', 'label']
 
     def format(self, arg):
-        '''Returns a string representation for the given value.'''
         return "%s" % str(arg)
 
     def pair(self, key, value):
-        '''Returns key=formatted(value).'''
         return '%s=%s' % (key, self.format(value))
 
     def emit(self):
-        '''Emits the Python source for this node.'''
 
-        # Format positional arguments
-        args = list(map(self.format, self.args))
+        args = list(map(self.format, self.args))  # formats all the arguments
 
-        has_relu = 'relu' in self.kwargs and self.kwargs['relu']
+        if(self.op == 'conv'):
+            self.op = 'ConvolutionLayer'
 
-        has_group = 'group' in self.kwargs and self.kwargs['group']
 
-        # Collect allocations
-        decls = []
-
-        if (len(self.node.parents) == 1 and self.node.get_only_parent().name == 'data'):
-            self.input_buffer_name = 'data'
-
-        # Select the triNNity primitive corresponding to this op
-        if (self.op == 'conv'):
-            self.op = 'triNNity::generic::layer::GenericFusedConvolutionalLayer'
-            act = 'triNNity::ACTIVATION_NONE'
-            if has_relu:
-              act = 'triNNity::ACTIVATION_RELU'
-
-            # Set up input buffer
-            if (self.op not in self.magic_layers):
-                if (self.input_buffer_name is None):
-                    papa = self.node.get_only_parent()
-                    self.input_buffer_name = papa.name + '.output'
-                    self.input_buffer = ''
-            else:
-                self.input_buffer_name = self.node.name + '_input'
-                self.input_buffer = 'ACTIVATION_TYPE' + ' * ' + self.input_buffer_name + ';'
-                decls += [(self.input_buffer_name, self.input_buffer, 'ACTIVATION_TYPE', str(int(args[0])*int(args[1])*int(args[2])))]
-
-            # Set up weights buffer
-            self.weights_buffer_name = self.node.name + '_weights'
-            self.weights_buffer = 'WEIGHT_TYPE' + ' * ' + self.weights_buffer_name + ';'
-            decls += [(self.weights_buffer_name, self.weights_buffer, 'WEIGHT_TYPE', str(int(args[0])*int(args[3])*int(args[3])*int(args[6])))]
-
-            # Set up bias buffer
-            self.bias_buffer_name = self.node.name + '_bias'
-            self.bias_buffer = 'WEIGHT_TYPE' + ' * ' + self.bias_buffer_name + ';'
-            decls += [(self.bias_buffer_name, self.bias_buffer, 'WEIGHT_TYPE', str(int(args[6])))]
-
-            # Set up output buffer
-            self.output_buffer_name = self.node.name + '_output'
-            self.output_buffer = 'ACTIVATION_TYPE' + ' * ' + self.output_buffer_name + ';'
-            decls += [(self.output_buffer_name, self.output_buffer, 'ACTIVATION_TYPE', str(int(args[6])*int(args[7])*int(args[8])))]
-
-            args = ', '.join(['ACTIVATION_TYPE', 'WEIGHT_TYPE', 'ACTIVATION_TYPE', 'LAYER_'+self.node.name.upper()+'_METHOD', 'triNNity::GEMM_BLAS'] + args + ['LAYER_'+(self.node.name.upper())+'_IN_FMT', 'triNNity::BOUND_IMPLICIT_PAD', act])
+            args = ', '.join([str(args[3])+'U', str(args[3])+'U', str(args[6])+'U', 'get_weights_accessor(data_path, "/cnn_data/' + {network}.lower() + '_model/' + self.node.name.lower() + '_w.npy", weights_layout)'] + [
+                             'get_weights_accessor(data_path, "/cnn_data/'+{network}.lower()+'_model/'+(self.node.name())+'_b.npy"), PadStrideInfo(' + str(args[5]), str(args[6]), str(args[9]), str(args[9]) + ')'])
+            if (kwargs['group'] != 1):
+                args.append(',' + kwargs['group'] + ')') 
 
         elif (self.op == 'relu'):
-            self.op = 'triNNity::layer::ActivationLayer'
+            self.op = 'ActivationLayer'
 
-            # Set up input buffer
-            if (self.op not in self.magic_layers):
-                if (self.input_buffer_name is None):
-                    papa = self.node.get_only_parent()
-                    self.input_buffer_name = papa.name + '.output'
-                    self.input_buffer = ''
-            else:
-                self.input_buffer_name = self.node.name + '_input'
-                self.input_buffer = 'ACTIVATION_TYPE' + ' * ' + self.input_buffer_name + ';'
-                decls += [(self.input_buffer_name, self.input_buffer, 'ACTIVATION_TYPE', str(int(args[0])*int(args[1])*int(args[2])))]
-
-            args = ', '.join(['ACTIVATION_TYPE'] + args)
+            args = [
+                'ActivationLayerInfo(ActivationLayerInfo::ActivationFunction::RELU)']
 
         elif (self.op == 'max_pool'):
-            self.op = 'triNNity::layer::PoolingLayer'
+            self.op = 'PoolingLayer'
 
-            # Set up input buffer
-            if (self.op not in self.magic_layers):
-                if (self.input_buffer_name is None):
-                    papa = self.node.get_only_parent()
-                    self.input_buffer_name = papa.name + '.output'
-                    self.input_buffer = ''
-            else:
-                self.input_buffer_name = self.node.name + '_input'
-                self.input_buffer = 'ACTIVATION_TYPE' + ' * ' + self.input_buffer_name + ';'
-                decls += [(self.input_buffer_name, self.input_buffer, 'ACTIVATION_TYPE', str(int(args[0])*int(args[1])*int(args[2])))]
-
-            args = ', '.join(['ACTIVATION_TYPE', 'triNNity::WINDOW_MAXPOOL'] + args)
+            args = ', '.join(['PoolingLayerInfo(PoolingType::' + 'MAX', str(args[3]),
+                             'PadStrideInfo(' + str(args[5]), str(args[6]), str(args[9]), str(args[9]) + ')'])
 
         elif (self.op == 'avg_pool'):
-            self.op = 'triNNity::layer::PoolingLayer'
+            self.op = 'PoolingLayer'
 
-            # Set up input buffer
-            if (self.op not in self.magic_layers):
-                if (self.input_buffer_name is None):
-                    papa = self.node.get_only_parent()
-                    self.input_buffer_name = papa.name + '.output'
-                    self.input_buffer = ''
-            else:
-                self.input_buffer_name = self.node.name + '_input'
-                self.input_buffer = 'ACTIVATION_TYPE' + ' * ' + self.input_buffer_name + ';'
-                decls += [(self.input_buffer_name, self.input_buffer, 'ACTIVATION_TYPE', str(int(args[0])*int(args[1])*int(args[2])))]
-
-            args = ', '.join(['ACTIVATION_TYPE', 'triNNity::WINDOW_AVGPOOL'] + args)
+            # CHANGE THIS
+            args = ', '.join(['PoolingLayerInfo(PoolingType::' + 'MAX', str(args[3]),
+                             'PadStrideInfo(' + str(args[5]), str(args[6]), str(0), str(0) + '),'])
 
         elif (self.op == 'fc'):
-            self.op = 'triNNity::layer::FCLayer'
+            self.op = 'FullyConnectedLayer'
 
-            # Set up input buffer
-            if (self.op not in self.magic_layers):
-                if (self.input_buffer_name is None):
-                    papa = self.node.get_only_parent()
-                    self.input_buffer_name = papa.name + '.output'
-                    self.input_buffer = ''
-            else:
-                self.input_buffer_name = self.node.name + '_input'
-                self.input_buffer = 'ACTIVATION_TYPE' + ' * ' + self.input_buffer_name + ';'
-                decls += [(self.input_buffer_name, self.input_buffer, 'ACTIVATION_TYPE', str(int(args[0])*int(args[1])*int(args[2])))]
-
-            # Set up weights buffer
-            self.weights_buffer_name = self.node.name + '_weights'
-            self.weights_buffer = 'WEIGHT_TYPE' + ' * ' + self.weights_buffer_name + ';'
-            decls += [(self.weights_buffer_name, self.weights_buffer, 'WEIGHT_TYPE', str(int(args[0])*int(args[1])*int(args[2])*int(args[3])))]
-
-            args = ', '.join(['ACTIVATION_TYPE', 'WEIGHT_TYPE', 'triNNity::GEMV_BLAS'] + args)
+            args = ', '.join([str(args[3]) + 'U', 'get_weights_accessor(data_path, "/cnn_data/' + {network}.lower() + '_model/' + self.node.name.lower() + '_w.npy", weights_layout)'] + [
+                             'get_weights_accessor(data_path, "/cnn_data/'+{network}.lower()+'_model/' + self.node.name.lower() + '_b.npy")'])
 
         elif (self.op == 'softmax'):
-            self.op = 'triNNity::layer::SoftmaxLayer'
+            self.op = 'SoftmaxLayer'
 
-            # Set up input buffer
-            if (self.op not in self.magic_layers):
-                if (self.input_buffer_name is None):
-                    papa = self.node.get_only_parent()
-                    self.input_buffer_name = papa.name + '.output'
-                    self.input_buffer = ''
-            else:
-                self.input_buffer_name = self.node.name + '_input'
-                self.input_buffer = 'ACTIVATION_TYPE' + ' * ' + self.input_buffer_name + ';'
-                decls += [(self.input_buffer_name, self.input_buffer, 'ACTIVATION_TYPE', str(int(args[0])*int(args[1])*int(args[2])))]
 
-            args = ', '.join(['ACTIVATION_TYPE'] + args)
+       elif (self.op == 'lrn'):
+            self.op = 'NormalizationLayer'
+            args = ', '.join(['NormalizationLayerInfo(NormType::' + 'CROSS_MAP', str(self.kwargs['size']), str(self.kwargs['alpha']), str(self.kwargs['beta'] + 'f))' ])
 
-        elif (self.op == 'lrn'):
-            self.op = 'triNNity::layer::ChannelwiseLRNLayer'
-
-            # Set up input buffer
-            if (self.op not in self.magic_layers):
-                if (self.input_buffer_name is None):
-                    papa = self.node.get_only_parent()
-                    self.input_buffer_name = papa.name + '.output'
-                    self.input_buffer = ''
-            else:
-                self.input_buffer_name = self.node.name + '_input'
-                self.input_buffer = 'ACTIVATION_TYPE' + ' * ' + self.input_buffer_name + ';'
-                decls += [(self.input_buffer_name, self.input_buffer, 'ACTIVATION_TYPE', str(int(args[0])*int(args[1])*int(args[2])))]
-
-            args = ', '.join(['ACTIVATION_TYPE'] + args)
+            
 
         elif (self.op == 'concat'):
-            self.op = 'triNNity::layer::ChannelwiseConcatLayer'
-
-            # Set up input buffers
-            self.input_buffers = []
-            parents = self.node.get_all_parents()
-            for n in parents:
-              self.input_buffers.append(n.name + '.output')
-
-            args = ', '.join(['ACTIVATION_TYPE'] + args)
+            self.op='triNNity::layer::ChannelwiseConcatLayer'
 
         elif (self.op == 'batch_normalization'):
-            self.op = 'triNNity::layer::BatchNormalizationLayer'
+            self.op='triNNity::layer::BatchNormalizationLayer'
 
-            # Set up input buffer
-            if (self.op not in self.magic_layers):
-                if (self.input_buffer_name is None):
-                    papa = self.node.get_only_parent()
-                    self.input_buffer_name = papa.name + '.output'
-                    self.input_buffer = ''
-            else:
-                self.input_buffer_name = self.node.name + '_input'
-                self.input_buffer = 'ACTIVATION_TYPE' + ' * ' + self.input_buffer_name + ';'
-                decls += [(self.input_buffer_name, self.input_buffer, 'ACTIVATION_TYPE', str(int(args[0])*int(args[1])*int(args[2])))]
-
-            args = ', '.join(['ACTIVATION_TYPE'] + args)
 
         elif (self.op == 'multiply'):
-            self.op = 'triNNity::layer::EltwiseLayer'
-            self.elt_op = 'triNNity::ELTWISE_MUL'
+            self.op='triNNity::layer::EltwiseLayer'
+            self.elt_op='triNNity::ELTWISE_MUL'
 
-            # Set up input buffers
-            self.input_buffers = []
-            parents = self.node.get_all_parents()
-            for n in parents:
-              self.input_buffers.append(n.name + '.output')
-
-            args = ', '.join(['ACTIVATION_TYPE', self.elt_op] + args)
 
         elif (self.op == 'add'):
-            self.op = 'triNNity::layer::EltwiseLayer'
-            self.elt_op = 'triNNity::ELTWISE_ADD'
+            self.op='triNNity::layer::EltwiseLayer'
+            self.elt_op='triNNity::ELTWISE_ADD'
 
-            # Set up input buffers
-            self.input_buffers = []
-            parents = self.node.get_all_parents()
-            for n in parents:
-              self.input_buffers.append(n.name + '.output')
-
-            args = ', '.join(['ACTIVATION_TYPE', self.elt_op] + args)
 
         elif (self.op == 'max'):
-            self.op = 'triNNity::layer::EltwiseLayer'
-            self.elt_op = 'triNNity::ELTWISE_MAX'
-
-            # Set up input buffers
-            self.input_buffers = []
-            parents = self.node.get_all_parents()
-            for n in parents:
-              self.input_buffers.append(n.name + '.output')
-
-            args = ', '.join(['ACTIVATION_TYPE', self.elt_op] + args)
+            self.op='triNNity::layer::EltwiseLayer'
+            self.elt_op='triNNity::ELTWISE_MAX'
 
         else:
             if (self.op not in self.magic_layers):
-                print_stderr('triNNity backend does not implement layer \'' + self.op + '\'')
-            args = ''
-
-        dynamic_args = []
-        if self.input_buffer_name:
-            dynamic_args += [self.input_buffer_name]
-        if self.input_buffers: # Concat layer has multiple inputs
-            for x in self.input_buffers:
-              dynamic_args.append(x)
-        if self.weights_buffer_name:
-            dynamic_args += [self.weights_buffer_name]
-        if self.bias_buffer_name:
-            dynamic_args += [self.bias_buffer_name]
-        if self.output_buffer_name:
-            dynamic_args += [self.output_buffer_name]
-
-        if self.orig_op == 'lrn':
-          dynamic_args += ['0', str(self.kwargs['size']), str(self.kwargs['alpha']), str(self.kwargs['beta'])]
-
-        if self.orig_op == 'batch_normalization':
-          dynamic_args += ['nullptr', 'nullptr', 'nullptr', 'nullptr']
+                print_stderr(
+                    'triNNity backend does not implement layer \'' + self.op + '\'')
+            args=''
 
         outputs = []
         if (self.orig_op not in self.magic_layers):
-            outputs += [self.op + '<' + args + '>' + ' ' + self.node.name + '(' + ', '.join(dynamic_args) + ');']
+            outputs += ['<<' + self.op + '(' + args + ')' + '.set_name(' + self.node.name.lower() + ')']
 
-        return (decls, outputs)
+        return(outputs)
 
 
 class MaybeActivated(object):
