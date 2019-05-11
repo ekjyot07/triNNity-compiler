@@ -71,9 +71,9 @@ class ARMCLNode(object):
             self.op = 'SoftmaxLayer'
 
 
-       elif (self.op == 'lrn'):
+        elif (self.op == 'lrn'):
             self.op = 'NormalizationLayer'
-            args = ', '.join(['NormalizationLayerInfo(NormType::' + 'CROSS_MAP', str(self.kwargs['size']), str(self.kwargs['alpha']), str(self.kwargs['beta'] + 'f))' ])
+            args = ', '.join(['NormalizationLayerInfo(NormType::' + 'CROSS_MAP', str(self.kwargs['size']), str(self.kwargs['alpha']), str(self.kwargs['beta']) + 'f))' ])
 
             
 
