@@ -76,7 +76,7 @@ class ARMCLNode(object):
 
         elif (self.op == 'softmax'):
             self.op = 'SoftmaxLayer'
-            args = 
+            args = ''
 
 
         elif (self.op == 'lrn'):
