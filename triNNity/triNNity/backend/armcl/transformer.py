@@ -76,6 +76,7 @@ class ARMCLNode(object):
 
         elif (self.op == 'softmax'):
             self.op = 'SoftmaxLayer'
+            args = 
 
 
         elif (self.op == 'lrn'):
@@ -86,24 +87,29 @@ class ARMCLNode(object):
 
         elif (self.op == 'concat'):
             self.op='triNNity::layer::ChannelwiseConcatLayer'
+            args = ''
 
         elif (self.op == 'batch_normalization'):
             self.op='triNNity::layer::BatchNormalizationLayer'
+            args = ''
 
 
         elif (self.op == 'multiply'):
             self.op='triNNity::layer::EltwiseLayer'
             self.elt_op='triNNity::ELTWISE_MUL'
+            args = ''
 
 
         elif (self.op == 'add'):
             self.op='triNNity::layer::EltwiseLayer'
             self.elt_op='triNNity::ELTWISE_ADD'
+            args = ''
 
 
         elif (self.op == 'max'):
             self.op='triNNity::layer::EltwiseLayer'
             self.elt_op='triNNity::ELTWISE_MAX'
+            args = ''
 
         else:
             if (self.op not in self.magic_layers):
