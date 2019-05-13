@@ -44,10 +44,10 @@ class ARMCLNode(object):
         if(self.op == 'conv'):
             self.op = 'ConvolutionLayer'
 
-            temp = ', '.join([str(args[3]), str(args[9])+'tatti'])
+            temp = ', '.join([str(int(args[3])), str(int(args[9]))+'tatti'])
             print(temp)
-            args = ', '.join([str(args[3])+'U', str(args[3])+'U', str(args[6])+'U', 'get_weights_accessor(data_path, "/cnn_data/' + graphName.lower() + '_model/' + self.node.name.lower() + '_w.npy", weights_layout)'] + [
-                             'get_weights_accessor(data_path, "/cnn_data/'+ graphName.lower() +'_model/'+(self.node.name())+'_b.npy"), PadStrideInfo(' + str(args[5]), str(args[6]), str(args[9]), str(args[9]) + ')'])
+            args = ', '.join([str(int(args[3]))+'U', str(int(args[3]))+'U', str(int(args[6]))+'U', 'get_weights_accessor(data_path, "/cnn_data/' + graphName.lower() + '_model/' + self.node.name.lower() + '_w.npy", weights_layout)'] + [
+                             'get_weights_accessor(data_path, "/cnn_data/'+ graphName.lower() +'_model/'+(self.node.name())+'_b.npy"), PadStrideInfo(' + str(int(args[5])), str(int(args[6])), str(int(args[9])), str(int(args[9])) + ')'])
             if (self.kwargs['group'] != 1):
                 args.append(',' + self.kwargs['group'] + ')') 
 
@@ -60,21 +60,21 @@ class ARMCLNode(object):
         elif (self.op == 'max_pool'):
             self.op = 'PoolingLayer'
 
-            args = ', '.join(['PoolingLayerInfo(PoolingType::' + 'MAX', str(args[3]),
-                             'PadStrideInfo(' + str(args[5]), str(args[6]), str(args[9]), str(args[9]) + ')'])
+            args = ', '.join(['PoolingLayerInfo(PoolingType::' + 'MAX', str(int(args[3])),
+                             'PadStrideInfo(' + str(int(args[5])), str(int(args[6])), str(int(args[9])), str(int(args[9])) + ')'])
 
         elif (self.op == 'avg_pool'):
             self.op = 'PoolingLayer'
 
             # CHANGE THIS
-            args = ', '.join(['PoolingLayerInfo(PoolingType::' + 'MAX', str(args[3]),
-                             'PadStrideInfo(' + str(args[5]), str(args[6]), str(0), str(0) + '),'])
+            args = ', '.join(['PoolingLayerInfo(PoolingType::' + 'MAX', str(int(args[3])),
+                             'PadStrideInfo(' + str(int(args[5])), str(int(args[6])), str(int(args[9])), str(int(args[9])) + '),'])
 
         elif (self.op == 'fc'):
             self.op = 'FullyConnectedLayer'
 
-            args = ', '.join([str(args[3]) + 'U', 'get_weights_accessor(data_path, "/cnn_data/' + {network}.lower() + '_model/' + self.node.name.lower() + '_w.npy", weights_layout)'] + [
-                             'get_weights_accessor(data_path, "/cnn_data/'+ {network}.lower() +'_model/' + self.node.name.lower() + '_b.npy")'])
+            args = ', '.join([str(int(args[3])) + 'U', 'get_weights_accessor(data_path, "/cnn_data/' + graphName.lower() + '_model/' + self.node.name.lower() + '_w.npy", weights_layout)'] + [
+                             'get_weights_accessor(data_path, "/cnn_data/'+ graphName.lower() +'_model/' + self.node.name.lower() + '_b.npy")'])
 
         elif (self.op == 'softmax'):
             self.op = 'SoftmaxLayer'
