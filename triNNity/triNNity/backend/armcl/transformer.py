@@ -39,7 +39,7 @@ class ARMCLNode(object):
         # Collect allocations
         decls = []
 
-        print(self)
+        print('test:'self)
 
         if(self.op == 'conv'):
             self.op = 'ConvolutionLayer'
