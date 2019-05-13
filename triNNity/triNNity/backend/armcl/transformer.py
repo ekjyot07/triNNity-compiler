@@ -44,11 +44,12 @@ class ARMCLNode(object):
         if(self.op == 'conv'):
             self.op = 'ConvolutionLayer'
 
-
+            temp = ', '.join([str(args[3]), str(args[9])+'tatti'])
+            print(temp)
             args = ', '.join([str(args[3])+'U', str(args[3])+'U', str(args[6])+'U', 'get_weights_accessor(data_path, "/cnn_data/' + graphName.lower() + '_model/' + self.node.name.lower() + '_w.npy", weights_layout)'] + [
                              'get_weights_accessor(data_path, "/cnn_data/'+ graphName.lower() +'_model/'+(self.node.name())+'_b.npy"), PadStrideInfo(' + str(args[5]), str(args[6]), str(args[9]), str(args[9]) + ')'])
-            if (kwargs['group'] != 1):
-                args.append(',' + kwargs['group'] + ')') 
+            if (self.kwargs['group'] != 1):
+                args.append(',' + self.kwargs['group'] + ')') 
 
         elif (self.op == 'relu'):
             self.op = 'ActivationLayer'
@@ -146,6 +147,8 @@ class ARMCLMapper(IRNodeMapper):
         k_w = kernel_params.kernel_w
         s_h = kernel_params.stride_h
         s_w = kernel_params.stride_w
+        p_w = kernel_params.pad_w
+        #p_h = kernel_params.pad_h
         c_o = node.output_shape[1]
         c_i = node.parents[0].output_shape[1]
         h_i = node.parents[0].output_shape[2]
@@ -158,7 +161,7 @@ class ARMCLMapper(IRNodeMapper):
         if not node.parameters.bias_term:
             kwargs['biased'] = False
 
-        return MaybeActivated(node)('conv', c_i, w_i, h_i, k_w, s_w, s_h, c_o, w_o, h_o, **kwargs)
+        return MaybeActivated(node)('conv', c_i, w_i, h_i, k_w, s_w, s_h, c_o, w_o, h_o, p_w, **kwargs)
 
     def map_relu(self, node):
         c_i = node.parents[0].output_shape[1]
@@ -179,6 +182,8 @@ class ARMCLMapper(IRNodeMapper):
         w_i = node.parents[0].output_shape[3]
         h_o = int(math.ceil(h_i / s_h))
         w_o = int(math.ceil(w_i / s_w))
+        p_w = kernel_params.pad_w
+        #p_h = kernel_params.pad_h
 
         if pool_type == 0:
             pool_op = 'max_pool'
@@ -187,7 +192,7 @@ class ARMCLMapper(IRNodeMapper):
         else:
             raise CompilerError('Unsupported pooling type.')
         kernel_params = self.get_kernel_params(node)
-        return ARMCLNode(pool_op, c_i, w_i, h_i, k_w, s_w, s_h, c_o, w_o, h_o)
+        return ARMCLNode(pool_op, c_i, w_i, h_i, k_w, s_w, s_h, c_o, w_o, h_o, p_w)
 
     def map_inner_product(self, node):
         assert node.parameters.axis == 1
