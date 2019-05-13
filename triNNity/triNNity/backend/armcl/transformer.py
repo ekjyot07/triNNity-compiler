@@ -32,13 +32,20 @@ class ARMCLNode(object):
     def emit(self):
 
         args = list(map(self.format, self.args))  # formats all the arguments
+        has_relu = 'relu' in self.kwargs and self.kwargs['relu']
+
+        has_group = 'group' in self.kwargs and self.kwargs['group']
+
+        # Collect allocations
+        decls = []
+
 
         if(self.op == 'conv'):
             self.op = 'ConvolutionLayer'
 
 
             args = ', '.join([str(args[3])+'U', str(args[3])+'U', str(args[6])+'U', 'get_weights_accessor(data_path, "/cnn_data/' + {network}.lower() + '_model/' + self.node.name.lower() + '_w.npy", weights_layout)'] + [
-                             'get_weights_accessor(data_path, "/cnn_data/'+{network}.lower()+'_model/'+(self.node.name())+'_b.npy"), PadStrideInfo(' + str(args[5]), str(args[6]), str(args[9]), str(args[9]) + ')'])
+                             'get_weights_accessor(data_path, "/cnn_data/'+ {network}.lower() +'_model/'+(self.node.name())+'_b.npy"), PadStrideInfo(' + str(args[5]), str(args[6]), str(args[9]), str(args[9]) + ')'])
             if (kwargs['group'] != 1):
                 args.append(',' + kwargs['group'] + ')') 
 
@@ -65,7 +72,7 @@ class ARMCLNode(object):
             self.op = 'FullyConnectedLayer'
 
             args = ', '.join([str(args[3]) + 'U', 'get_weights_accessor(data_path, "/cnn_data/' + {network}.lower() + '_model/' + self.node.name.lower() + '_w.npy", weights_layout)'] + [
-                             'get_weights_accessor(data_path, "/cnn_data/'+{network}.lower()+'_model/' + self.node.name.lower() + '_b.npy")'])
+                             'get_weights_accessor(data_path, "/cnn_data/'+ {network}.lower() +'_model/' + self.node.name.lower() + '_b.npy")'])
 
         elif (self.op == 'softmax'):
             self.op = 'SoftmaxLayer'
@@ -108,7 +115,7 @@ class ARMCLNode(object):
         if (self.orig_op not in self.magic_layers):
             outputs += ['<<' + self.op + '(' + args + ')' + '.set_name(' + self.node.name.lower() + ')']
 
-        return(outputs)
+        return(decls, outputs)
 
 
 class MaybeActivated(object):
