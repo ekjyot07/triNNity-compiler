@@ -29,7 +29,7 @@ class ARMCLNode(object):
     def pair(self, key, value):
         return '%s=%s' % (key, self.format(value))
 
-    def emit(self):
+    def emit(self, graphName):
 
         args = list(map(self.format, self.args))  # formats all the arguments
         has_relu = 'relu' in self.kwargs and self.kwargs['relu']
@@ -39,16 +39,14 @@ class ARMCLNode(object):
         # Collect allocations
         decls = []
 
-        print('[INFO] SELF OBJECT:')
 
-        print(self)
 
         if(self.op == 'conv'):
             self.op = 'ConvolutionLayer'
 
 
-            args = ', '.join([str(args[3])+'U', str(args[3])+'U', str(args[6])+'U', 'get_weights_accessor(data_path, "/cnn_data/' + {network}.lower() + '_model/' + self.node.name.lower() + '_w.npy", weights_layout)'] + [
-                             'get_weights_accessor(data_path, "/cnn_data/'+ {network}.lower() +'_model/'+(self.node.name())+'_b.npy"), PadStrideInfo(' + str(args[5]), str(args[6]), str(args[9]), str(args[9]) + ')'])
+            args = ', '.join([str(args[3])+'U', str(args[3])+'U', str(args[6])+'U', 'get_weights_accessor(data_path, "/cnn_data/' + graphName.lower() + '_model/' + self.node.name.lower() + '_w.npy", weights_layout)'] + [
+                             'get_weights_accessor(data_path, "/cnn_data/'+ graphName.lower() +'_model/'+(self.node.name())+'_b.npy"), PadStrideInfo(' + str(args[5]), str(args[6]), str(args[9]), str(args[9]) + ')'])
             if (kwargs['group'] != 1):
                 args.append(',' + kwargs['group'] + ')') 
 
@@ -275,8 +273,8 @@ class ARMCLEmitter(object):
         s = sep.join(["'%s'" % parent.name for parent in chain[0].node.parents])
         return self.statement(s)
 
-    def emit_node(self, node):
-        (decls, code) = node.emit()
+    def emit_node(self, node, name):
+        (decls, code) = node.emit(name)
         self.collected_declarations += decls
         self.collected_code += list(map(lambda x: self.statement(str(x)), code))
         self.collected_layers += [node.node.name + ".execute();"]
@@ -286,7 +284,7 @@ class ARMCLEmitter(object):
 
         for chain in chains:
             for node in chain:
-                self.emit_node(node)
+                self.emit_node(node, name)
 
         c = self.prefix.join(self.collected_code)
         c += '\n'
