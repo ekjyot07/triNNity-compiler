@@ -44,10 +44,9 @@ class ARMCLNode(object):
         if(self.op == 'conv'):
             self.op = 'ConvolutionLayer'
 
-            # args = ', '.join([str(int(args[3])), str(int(args[9]))+'tatti'])
             args = ', '.join([str(int(args[3]))+'U', str(int(args[3]))+'U', str(int(args[6]))+'U', 'get_weights_accessor(data_path, "/cnn_data/' + graphName.lower() + '_model/' + self.node.name.lower() + '_w.npy", weights_layout)'] + ['get_weights_accessor(data_path, "/cnn_data/' + graphName.lower() + '_model/' + self.node.name + '_b.npy"), PadStrideInfo(' + str(int(args[4])), str(int(args[5])), str(int(args[9])), str(int(args[9])) + ')'])
-            # if (self.kwargs['group'] != 1):
-            #     args.append(',' + self.kwargs['group'] + ')') 
+            if (self.kwargs['group'] != 1):
+                args.append(',' + self.kwargs['group'] + ')') 
 
         elif (self.op == 'relu'):
             self.op = 'ActivationLayer'
