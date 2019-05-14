@@ -86,30 +86,30 @@ class ARMCLNode(object):
 
         elif (self.op == 'concat'):
             self.op='ConcatLayer'
-            args = self.node.name.lower() + args
+            args = ', '.join([self.node.name.lower()] + args)
 
         elif (self.op == 'batch_normalization'):
             self.op='triNNity::layer::BatchNormalizationLayer'
-            args = self.node.name.lower() + args
+            args = ', '.join([self.node.name.lower()] + args)
         
 
 
         elif (self.op == 'multiply'):
             self.op='triNNity::layer::EltwiseLayer'
             self.elt_op='triNNity::ELTWISE_MUL'
-            args = self.node.name.lower() + args
+            args = ', '.join([self.node.name.lower()] + args)
 
 
         elif (self.op == 'add'):
             self.op='triNNity::layer::EltwiseLayer'
             self.elt_op='triNNity::ELTWISE_ADD'
-            args = self.node.name.lower() + args
+            args = ', '.join([self.node.name.lower()] + args)
 
 
         elif (self.op == 'max'):
             self.op='triNNity::layer::EltwiseLayer'
             self.elt_op='triNNity::ELTWISE_MAX'
-            args = self.node.name.lower() + args
+            args = ', '.join([self.node.name.lower()] + args)
 
         else:
             if (self.op not in self.magic_layers):
