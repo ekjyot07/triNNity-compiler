@@ -120,7 +120,7 @@ class ARMCLNode(object):
         # print('[INFO]')
         # print(args)
         if (self.orig_op not in self.magic_layers):
-            outputs += ['<<' + self.op + '(' + args + ')' + '.set_name(' + self.node.name.lower() + ')']
+            outputs += ['<<' + self.op + '(' + args + ')' + '.set_name("' + self.node.name.lower() + '")']
 
         return(decls, outputs)
 
