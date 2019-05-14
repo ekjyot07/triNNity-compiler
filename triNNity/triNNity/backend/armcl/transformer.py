@@ -64,8 +64,7 @@ class ARMCLNode(object):
         elif (self.op == 'avg_pool'):
             self.op = 'PoolingLayer'
 
-            # CHANGE THIS
-            args = ', '.join(['PoolingLayerInfo(PoolingType::' + 'MAX', str(int(args[3])),
+            args = ', '.join(['PoolingLayerInfo(PoolingType::' + 'AVG', str(int(args[3])),
                              'PadStrideInfo(' + str(int(args[4])), str(int(args[5])), str(int(args[9])), str(int(args[9])) + '),'])
 
         elif (self.op == 'fc'):
@@ -86,30 +85,31 @@ class ARMCLNode(object):
             
 
         elif (self.op == 'concat'):
-            self.op='triNNity::layer::ChannelwiseConcatLayer'
-            args = ''
+            self.op='ConcatLayer'
+            args = self.node.name.lower() + args
 
         elif (self.op == 'batch_normalization'):
             self.op='triNNity::layer::BatchNormalizationLayer'
-            args = ''
+            args = self.node.name.lower() + args
+        
 
 
         elif (self.op == 'multiply'):
             self.op='triNNity::layer::EltwiseLayer'
             self.elt_op='triNNity::ELTWISE_MUL'
-            args = ''
+            args = self.node.name.lower() + args
 
 
         elif (self.op == 'add'):
             self.op='triNNity::layer::EltwiseLayer'
             self.elt_op='triNNity::ELTWISE_ADD'
-            args = ''
+            args = self.node.name.lower() + args
 
 
         elif (self.op == 'max'):
             self.op='triNNity::layer::EltwiseLayer'
             self.elt_op='triNNity::ELTWISE_MAX'
-            args = ''
+            args = self.node.name.lower() + args
 
         else:
             if (self.op not in self.magic_layers):
@@ -118,8 +118,10 @@ class ARMCLNode(object):
             args=''
 
         outputs = []
+    
         print('[INFO]' + self.node.name.lower())
         print(args)
+
         if (self.orig_op not in self.magic_layers):
             outputs += ['<<' + self.op + '(' + args + ')' + '.set_name("' + self.node.name.lower() + '")']
 
