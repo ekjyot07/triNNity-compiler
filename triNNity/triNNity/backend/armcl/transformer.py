@@ -89,7 +89,7 @@ class ARMCLNode(object):
             self.leftparent = self.node.parents[0].node.name
             self.rightparent = self.node.parents[1].node.name
 
-            args = ', '.join(['SubStream::add_layer(' + self.leftparent + ')', 'SubStream::add_layer('+self.rightparent')'])
+            args = ', '.join(['SubStream::add_layer(' + self.leftparent + ')', 'SubStream::add_layer(' + self.rightparent + ')'])
 
         elif (self.op == 'batch_normalization'):
             self.op='triNNity::layer::BatchNormalizationLayer'
