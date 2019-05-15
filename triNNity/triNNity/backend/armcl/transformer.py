@@ -86,10 +86,9 @@ class ARMCLNode(object):
 
         elif (self.op == 'concat'):
             self.op='ConcatLayer'
-            self.leftparent = self.node.parents[0].node.name
-            self.rightparent = self.node.parents[1].node.name
-
-            args = ', '.join(['SubStream::add_layer(' + self.leftparent + ')', 'SubStream::add_layer(' + self.rightparent + ')'])
+            #args[4] ==left parent
+            #args[5] ==right parent
+            args = ', '.join(['SubStream::add_layer(' + args[4] + ')', 'SubStream::add_layer(' + args[5] + ')'])
 
         elif (self.op == 'batch_normalization'):
             self.op='triNNity::layer::BatchNormalizationLayer'
@@ -234,9 +233,11 @@ class ARMCLMapper(IRNodeMapper):
         c_i_1 = node.parents[1].output_shape[1]
         h_i = node.parents[0].output_shape[2]
         w_i = node.parents[0].output_shape[3]
+        parent_left = node.parents[0]
+        parent_right = node.parents[1]
         if axis != [1]:
             raise CompilerError('Found concat node with unsupported join axis: %s' % axis)
-        return ARMCLNode('concat', c_i_0, c_i_1, w_i, h_i, 'triNNity::layout::CHW')
+        return ARMCLNode('concat', c_i_0, c_i_1, w_i, h_i, parent_left, parent_right, 'triNNity::layout::CHW')
 
     def map_dropout(self, node):
         return ARMCLNode('dropout', node.parameters.dropout_ratio)
