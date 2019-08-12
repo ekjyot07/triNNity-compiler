@@ -108,7 +108,7 @@ class TrinnityNode(object):
                 self.input_buffer = 'ACTIVATION_TYPE' + ' * ' + self.input_buffer_name + ';'
                 decls += [(self.input_buffer_name, self.input_buffer, 'ACTIVATION_TYPE', str(int(args[0])*int(args[1])*int(args[2])))]
 
-            args = ', '.join(['ACTIVATION_TYPE'] + args)
+            args = ', '.join(['<<<HIJACKED!---ACTIVATION_TYPE---HIJACKED>>>'] + args)
 
         elif (self.op == 'max_pool'):
             self.op = 'triNNity::layer::PoolingLayer'
