@@ -4,7 +4,9 @@ import numpy as np
 from triNNity.util.errors import CompilerError, print_stderr
 from triNNity.frontend.graph import IRGraphBuilder, IRNodeMapper
 from triNNity.frontend.layers import LayerKind
-from triNNity.util.transformers import (DataInjector, DataReshaper, NodeRenamer, ReLUFuser, BatchNormScaleBiasFuser, BatchNormPreprocessor, ParameterNamer, ConcatTreeSplitter)
+from triNNity.util.transformers import (DataInjector, DataReshaper, NodeRenamer, ReLUFuser,
+                                        BatchNormScaleBiasFuser, BatchNormPreprocessor, ParameterNamer, ConcatTreeSplitter)
+
 
 class ARMCLNode(object):
 
@@ -31,7 +33,9 @@ class ARMCLNode(object):
 
     def emit(self, graphName):
 
-        args = list(map(self.format, self.args))  # formats all the arguments
+        args = list(map(self.format, self.args))
+
+        # formats all the arguments
         has_relu = 'relu' in self.kwargs and self.kwargs['relu']
 
         has_group = 'group' in self.kwargs and self.kwargs['group']
@@ -39,16 +43,18 @@ class ARMCLNode(object):
         # Collect allocations
         decls = []
 
-
-
         if(self.op == 'conv'):
             self.op = 'ConvolutionLayer'
 
+            if has_relu:
+                act = 'the next layer should be relu'
+
             # print('[INFO]' + self.node.name.lower())
             # print(self.kwargs)
-            args = ', '.join([str(int(args[3]))+'U', str(int(args[3]))+'U', str(int(args[6]))+'U', 'get_weights_accessor(data_path, "/cnn_data/' + graphName.lower() + '_model/' + self.node.name.lower() + '_w.npy", weights_layout)'] + ['get_weights_accessor(data_path, "/cnn_data/' + graphName.lower() + '_model/' + self.node.name + '_b.npy"), PadStrideInfo(' + str(int(args[4])), str(int(args[5])), str(int(args[9])), str(int(args[9])) + ')'])
+            args = ', '.join([str(int(args[3]))+'U', str(int(args[3]))+'U', str(int(args[6]))+'U', 'get_weights_accessor(data_path, "/cnn_data/' + graphName.lower() + '_model/' + self.node.name.lower() + '_w.npy", weights_layout)'] + [
+                             'get_weights_accessor(data_path, "/cnn_data/' + graphName.lower() + '_model/' + self.node.name + '_b.npy"), PadStrideInfo(' + str(int(args[4])), str(int(args[5])), str(int(args[9])), str(int(args[9])) + ')' + act])
             if (self.kwargs['group'] != 1):
-                args += (',' + str(int(self.kwargs['group'])) + ')') 
+                args += (',' + str(int(self.kwargs['group'])) + ')')
 
         elif (self.op == 'relu'):
             self.op = 'ActivationLayer'
@@ -59,73 +65,69 @@ class ARMCLNode(object):
             self.op = 'PoolingLayer'
 
             args = ', '.join(['PoolingLayerInfo(PoolingType::' + 'MAX', str(int(args[3])),
-                             'PadStrideInfo(' + str(int(args[4])), str(int(args[5])), str(int(args[9])), str(int(args[9])) + ')'])
+                              'PadStrideInfo(' + str(int(args[4])), str(int(args[5])), str(int(args[9])), str(int(args[9])) + ')'])
 
         elif (self.op == 'avg_pool'):
             self.op = 'PoolingLayer'
 
             args = ', '.join(['PoolingLayerInfo(PoolingType::' + 'AVG', str(int(args[3])),
-                             'PadStrideInfo(' + str(int(args[4])), str(int(args[5])), str(int(args[9])), str(int(args[9])) + '),'])
+                              'PadStrideInfo(' + str(int(args[4])), str(int(args[5])), str(int(args[9])), str(int(args[9])) + '),'])
 
         elif (self.op == 'fc'):
             self.op = 'FullyConnectedLayer'
 
             args = ', '.join([str(int(args[3])) + 'U', 'get_weights_accessor(data_path, "/cnn_data/' + graphName.lower() + '_model/' + self.node.name.lower() + '_w.npy", weights_layout)'] + [
-                             'get_weights_accessor(data_path, "/cnn_data/'+ graphName.lower() +'_model/' + self.node.name.lower() + '_b.npy")'])
+                             'get_weights_accessor(data_path, "/cnn_data/' + graphName.lower() + '_model/' + self.node.name.lower() + '_b.npy")'])
 
         elif (self.op == 'softmax'):
             self.op = 'SoftmaxLayer'
             args = ''
 
-
         elif (self.op == 'lrn'):
             self.op = 'NormalizationLayer'
-            args = ', '.join(['NormalizationLayerInfo(NormType::' + 'CROSS_MAP', str(self.kwargs['size']), str(self.kwargs['alpha']), str(self.kwargs['beta']) + 'f))' ])
-
-            
+            args = ', '.join(['NormalizationLayerInfo(NormType::' + 'CROSS_MAP', str(
+                self.kwargs['size']), str(self.kwargs['alpha']), str(self.kwargs['beta']) + 'f))'])
 
         elif (self.op == 'concat'):
-            self.op='ConcatLayer'
-            #args[4] ==left parent
-            #args[5] ==right parent
-            args = ', '.join(['SubStream::add_layer(' + args[4] + ')', 'SubStream::add_layer(' + args[5] + ')'])
+            self.op = 'ConcatLayer'
+            # args[4] ==left parent
+            # args[5] ==right parent
+            args = ', '.join(['SubStream::add_layer(' + args[4] + ')',
+                              'SubStream::add_layer(' + args[5] + ')'])
 
         elif (self.op == 'batch_normalization'):
-            self.op='triNNity::layer::BatchNormalizationLayer'
+            self.op = 'triNNity::layer::BatchNormalizationLayer'
             args = ', '.join([self.node.name.lower()] + args)
-        
-
 
         elif (self.op == 'multiply'):
-            self.op='triNNity::layer::EltwiseLayer'
-            self.elt_op='triNNity::ELTWISE_MUL'
+            self.op = 'triNNity::layer::EltwiseLayer'
+            self.elt_op = 'triNNity::ELTWISE_MUL'
             args = ', '.join([self.node.name.lower()] + args)
-
 
         elif (self.op == 'add'):
-            self.op='triNNity::layer::EltwiseLayer'
-            self.elt_op='triNNity::ELTWISE_ADD'
+            self.op = 'triNNity::layer::EltwiseLayer'
+            self.elt_op = 'triNNity::ELTWISE_ADD'
             args = ', '.join([self.node.name.lower()] + args)
 
-
         elif (self.op == 'max'):
-            self.op='triNNity::layer::EltwiseLayer'
-            self.elt_op='triNNity::ELTWISE_MAX'
+            self.op = 'triNNity::layer::EltwiseLayer'
+            self.elt_op = 'triNNity::ELTWISE_MAX'
             args = ', '.join([self.node.name.lower()] + args)
 
         else:
             if (self.op not in self.magic_layers):
                 print_stderr(
                     'triNNity backend does not implement layer \'' + self.op + '\'')
-            args=''
+            args = ''
 
         outputs = []
-    
+
         print('[INFO]' + self.node.name.lower())
         print(args)
 
         if (self.orig_op not in self.magic_layers):
-            outputs += ['<<' + self.op + '(' + args + ')' + '.set_name("' + self.node.name.lower() + '")']
+            outputs += ['<<' + self.op +
+                        '(' + args + ')' + '.set_name("' + self.node.name.lower() + '")']
 
         return(decls, outputs)
 
@@ -167,11 +169,10 @@ class ARMCLMapper(IRNodeMapper):
         w_o = int(math.ceil(w_i / s_w))
         group = node.parameters.group
         kwargs['group'] = group
-        
+
         if not node.parameters.bias_term:
             kwargs['biased'] = False
         return MaybeActivated(node)('conv', c_i, w_i, h_i, k_w, s_w, s_h, c_o, w_o, h_o, p_w, **kwargs)
-
 
     def map_relu(self, node):
         c_i = node.parents[0].output_shape[1]
@@ -236,7 +237,8 @@ class ARMCLMapper(IRNodeMapper):
         parent_left = node.parents[0]
         parent_right = node.parents[1]
         if axis != [1]:
-            raise CompilerError('Found concat node with unsupported join axis: %s' % axis)
+            raise CompilerError(
+                'Found concat node with unsupported join axis: %s' % axis)
         return ARMCLNode('concat', c_i_0, c_i_1, w_i, h_i, parent_left, parent_right, 'triNNity::layout::CHW')
 
     def map_dropout(self, node):
@@ -257,7 +259,8 @@ class ARMCLMapper(IRNodeMapper):
         try:
             return ARMCLNode(operations[op_code], elt_count)
         except KeyError:
-            raise CompilerError('Unknown elementwise operation: {}'.format(op_code))
+            raise CompilerError(
+                'Unknown elementwise operation: {}'.format(op_code))
 
     def commit(self, chains):
         return chains
@@ -287,7 +290,8 @@ class ARMCLEmitter(object):
     def emit_parents(self, chain):
         assert len(chain)
         sep = '\n' + self.prefix
-        s = sep.join(["'%s'" % parent.name for parent in chain[0].node.parents])
+        s = sep.join(
+            ["'%s'" % parent.name for parent in chain[0].node.parents])
         return self.statement(s)
 
     def emit_node(self, node, name):
