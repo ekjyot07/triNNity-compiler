@@ -81,7 +81,7 @@ class ARMCLNode(object):
 
         elif (self.op == 'lrn'):
             self.op = 'NormalizationLayer'
-            args = ', '.join(['NormalizationLayerInfo(NormType::' + 'CROSS_MAP', str(self.kwargs['size']), str(self.kwargs['alpha']), str(self.kwargs['beta']) + 'f))' ])
+            args = ', '.join(['NormalizationLayerInfo(NormType::' + 'CROSS_MAP', str(self.kwargs['size']), str(self.kwargs['alpha']), str(self.kwargs['beta']) + 'f)' ])
 
             
 
@@ -92,7 +92,7 @@ class ARMCLNode(object):
             args = ', '.join(['SubStream::add_layer(' + args[4] + ')', 'SubStream::add_layer(' + args[5] + ')'])
 
         elif (self.op == 'batch_normalization'):
-            self.op='triNNity::layer::BatchNormalizationLayer'
+            self.op='BatchNormalizationLayer'
             args = ', '.join([self.node.name.lower()] + args)
         
 
@@ -126,7 +126,7 @@ class ARMCLNode(object):
         print(args)
 
         if (self.orig_op not in self.magic_layers):
-            outputs += [4*'   ' + '<<' + self.op + '(' + args + ')' + '.set_name("' + self.node.name.lower() + '")']
+            outputs += ['<<' + self.op + '(' + args + ')' + '.set_name("' + self.node.name.lower() + '")']
 
         return(decls, outputs)
 
