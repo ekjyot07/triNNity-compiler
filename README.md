@@ -1,5 +1,7 @@
 # triNNity-compiler
 
+Originally forked from https://gitlab.scss.tcd.ie/software-tools-group/cnn-research/triNNity-compiler
+
 Compile [Caffe](https://github.com/BVLC/caffe/) models to code.
 
 Currently supported backends:
